@@ -1,23 +1,9 @@
 import bcrypt from 'bcrypt';
 import { invalidCredentials } from '../../lib/errors.js';
-import { CURRENT_USER_INCLUDE } from '../../middleware/authenticate.js';
+import { BCRYPT_ROUNDS } from '../../lib/passwords.js';
+import { USER_COMPANY_INCLUDE } from '../users/users.presenter.js';
 
-export const PASSWORD_BCRYPT_ROUNDS = 10;
-const TIMING_GUARD_HASH = bcrypt.hashSync('yardflow-timing-guard', PASSWORD_BCRYPT_ROUNDS);
-
-export function toPublicUser(user) {
-  return {
-    id: user.id,
-    email: user.email,
-    name: user.name,
-    role: user.role,
-    companyId: user.companyId,
-    company: user.company ?? null,
-    isActive: user.isActive,
-    lastLoginAt: user.lastLoginAt,
-    createdAt: user.createdAt,
-  };
-}
+const TIMING_GUARD_HASH = bcrypt.hashSync('yardflow-timing-guard', BCRYPT_ROUNDS);
 
 function loginFailureReason(user, passwordMatches) {
   if (!user) {
@@ -26,12 +12,18 @@ function loginFailureReason(user, passwordMatches) {
   if (!passwordMatches) {
     return 'WRONG_PASSWORD';
   }
-  return user.isActive ? null : 'INACTIVE_USER';
+  if (!user.isActive) {
+    return 'INACTIVE_USER';
+  }
+  return user.company?.isActive === false ? 'INACTIVE_COMPANY' : null;
 }
 
 export function createAuthService({ prisma, auditService }) {
   async function verifyCredentials({ email, password, ip }) {
-    const user = await prisma.user.findUnique({ where: { email } });
+    const user = await prisma.user.findUnique({
+      where: { email },
+      include: USER_COMPANY_INCLUDE,
+    });
     const passwordMatches = await bcrypt.compare(password, user?.passwordHash ?? TIMING_GUARD_HASH);
     const failureReason = loginFailureReason(user, passwordMatches);
     if (failureReason) {
@@ -53,7 +45,7 @@ export function createAuthService({ prisma, auditService }) {
       const loggedInUser = await transaction.user.update({
         where: { id: user.id },
         data: { lastLoginAt: new Date() },
-        include: CURRENT_USER_INCLUDE,
+        include: USER_COMPANY_INCLUDE,
       });
       await auditService.record(
         { userId: user.id, action: 'LOGIN', entity: 'User', entityId: user.id, ip },

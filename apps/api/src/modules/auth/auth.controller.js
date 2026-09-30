@@ -1,6 +1,6 @@
 import { destroySession, regenerateSession, saveSession } from '../../lib/session.js';
 import { SESSION_COOKIE_NAME } from '../../middleware/session.js';
-import { toPublicUser } from './auth.service.js';
+import { toPublicUser } from '../users/users.presenter.js';
 
 export function createAuthController({ authService }) {
   async function login(request, response) {

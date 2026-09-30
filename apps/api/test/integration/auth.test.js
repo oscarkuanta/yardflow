@@ -174,6 +174,7 @@ describe('auth', () => {
         id: company.id,
         code: company.code,
         name: company.name,
+        isActive: true,
       });
       expect(response.body.data).not.toHaveProperty('passwordHash');
     });

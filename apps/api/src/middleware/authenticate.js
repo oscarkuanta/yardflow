@@ -1,7 +1,6 @@
 import { forbidden, notAuthenticated } from '../lib/errors.js';
 import { destroySession } from '../lib/session.js';
-
-export const CURRENT_USER_INCLUDE = { company: { select: { id: true, code: true, name: true } } };
+import { USER_COMPANY_INCLUDE, isAccountActive } from '../modules/users/users.presenter.js';
 
 export function createRequireAuth({ prisma }) {
   return async function requireAuth(request, _response, next) {
@@ -12,9 +11,9 @@ export function createRequireAuth({ prisma }) {
     }
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      include: CURRENT_USER_INCLUDE,
+      include: USER_COMPANY_INCLUDE,
     });
-    if (!user || !user.isActive) {
+    if (!user || !isAccountActive(user)) {
       await destroySession(request);
       next(notAuthenticated('Your session has ended, please log in again'));
       return;

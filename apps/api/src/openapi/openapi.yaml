@@ -17,8 +17,431 @@ tags:
     description: Log in, log out and read the current user
   - name: System
     description: Health and liveness
+  - name: Users
+    description: Staff and customer accounts (Admin)
+  - name: Companies
+    description: Customer companies (Admin)
+  - name: Blocks
+    description: Yard blocks with geometry and occupancy
+  - name: Tariffs
+    description: Storage tariffs per size and dangerous goods flag (Admin)
+  - name: Time slots
+    description: Hourly gate slots with capacity
 
 paths:
+  /users:
+    get:
+      tags: [Users]
+      summary: List users
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+        - name: sort
+          in: query
+          description: 'One of id, name, email, role, createdAt, lastLoginAt with :asc or :desc'
+          schema:
+            type: string
+            default: name:asc
+        - name: role
+          in: query
+          schema:
+            $ref: '#/components/schemas/Role'
+        - name: companyId
+          in: query
+          schema:
+            type: integer
+        - $ref: '#/components/parameters/IsActive'
+        - $ref: '#/components/parameters/Search'
+      responses:
+        '200':
+          description: One page of users
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserPage'
+        '401':
+          $ref: '#/components/responses/NotAuthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+    post:
+      tags: [Users]
+      summary: Create a user
+      description: Customers need a companyId. Staff users must not have one.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateUser'
+            example:
+              email: new.planner@yardflow.dev
+              name: Nina Weber
+              password: change-me-123
+              role: PLANNER
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '401':
+          $ref: '#/components/responses/NotAuthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+
+  /users/{id}:
+    patch:
+      tags: [Users]
+      summary: Update, activate or deactivate a user
+      description: Deactivating a user ends all of their sessions at once. Admins cannot deactivate themselves or remove their own admin role.
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateUser'
+            example:
+              isActive: false
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '401':
+          $ref: '#/components/responses/NotAuthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+
+  /companies:
+    get:
+      tags: [Companies]
+      summary: List companies
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+        - name: sort
+          in: query
+          description: 'One of id, code, name, createdAt with :asc or :desc'
+          schema:
+            type: string
+            default: name:asc
+        - $ref: '#/components/parameters/IsActive'
+        - $ref: '#/components/parameters/Search'
+      responses:
+        '200':
+          description: One page of companies
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CompanyPage'
+        '401':
+          $ref: '#/components/responses/NotAuthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    post:
+      tags: [Companies]
+      summary: Create a company
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCompany'
+            example:
+              code: KIL
+              name: Kiel Box Logistics
+              contactEmail: ops@kielbox.example
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CompanyResponse'
+        '401':
+          $ref: '#/components/responses/NotAuthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+
+  /companies/{id}:
+    patch:
+      tags: [Companies]
+      summary: Update a company
+      description: The code cannot change. Deactivating a company logs out its customers and blocks their login.
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateCompany'
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CompanyResponse'
+        '401':
+          $ref: '#/components/responses/NotAuthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+
+  /blocks:
+    get:
+      tags: [Blocks]
+      summary: Blocks with geometry and occupancy
+      description: Admin, Planner and Gate Operator.
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+        - name: sort
+          in: query
+          description: 'One of id, code, gateDistanceM with :asc or :desc'
+          schema:
+            type: string
+            default: code:asc
+        - name: type
+          in: query
+          schema:
+            $ref: '#/components/schemas/BlockType'
+        - name: sizeClass
+          in: query
+          schema:
+            $ref: '#/components/schemas/BlockSizeClass'
+      responses:
+        '200':
+          description: One page of blocks
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BlockPage'
+        '401':
+          $ref: '#/components/responses/NotAuthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    post:
+      tags: [Blocks]
+      summary: Create a block
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateBlock'
+            example:
+              code: F
+              type: STANDARD
+              sizeClass: LARGE
+              rows: 5
+              bays: 10
+              maxTier: 4
+              mapX: 500
+              mapY: 20
+              gateDistanceM: 480
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BlockResponse'
+        '401':
+          $ref: '#/components/responses/NotAuthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+
+  /blocks/{id}:
+    patch:
+      tags: [Blocks]
+      summary: Change a block
+      description: |
+        Shrinking is refused with `409 BLOCK_SHRINK_CUTS_STACKS` when an occupied position would fall outside
+        the new rows, bays or maximum tier. Type and size class can only change while the block is empty.
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateBlock'
+            example:
+              maxTier: 4
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BlockResponse'
+        '401':
+          $ref: '#/components/responses/NotAuthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+
+  /tariffs:
+    get:
+      tags: [Tariffs]
+      summary: List tariffs
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+        - name: sort
+          in: query
+          description: 'One of id, size, isDangerous with :asc or :desc'
+          schema:
+            type: string
+            default: id:asc
+      responses:
+        '200':
+          description: One page of tariffs
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TariffPage'
+        '401':
+          $ref: '#/components/responses/NotAuthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    patch:
+      tags: [Tariffs]
+      summary: Change one tariff
+      description: The tariff is identified by size and isDangerous. Send freeDays, dailyRateCents or both.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateTariff'
+            example:
+              size: FT40
+              isDangerous: false
+              dailyRateCents: 1600
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Tariff'
+        '401':
+          $ref: '#/components/responses/NotAuthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+
+  /time-slots:
+    get:
+      tags: [Time slots]
+      summary: Slots of one day with remaining capacity
+      description: |
+        Admin and Customer. Slots run hourly from 08:00 to 17:00 Europe/Berlin, Monday to Saturday.
+        Slots from today up to 14 days ahead are created on first request. Bookings count when ACTIVE or USED.
+      parameters:
+        - name: date
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+            examples: ['2026-10-01']
+      responses:
+        '200':
+          description: The slots of the day, empty on Sunday
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TimeSlot'
+        '401':
+          $ref: '#/components/responses/NotAuthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+    patch:
+      tags: [Time slots]
+      summary: Change the capacity of one slot or a whole day
+      description: Send slotId or date, not both. Capacity can never be lower than the bookings of a slot.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateCapacity'
+            example:
+              date: '2026-10-01'
+              capacity: 12
+      responses:
+        '200':
+          description: The changed slots
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TimeSlot'
+        '401':
+          $ref: '#/components/responses/NotAuthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+
   /health:
     get:
       tags: [System]
@@ -216,7 +639,360 @@ components:
         data:
           $ref: '#/components/schemas/User'
 
+    PageMeta:
+      type: object
+      required: [page, pageSize, total]
+      properties:
+        page:
+          type: integer
+        pageSize:
+          type: integer
+        total:
+          type: integer
+
+    UserPage:
+      allOf:
+        - $ref: '#/components/schemas/PageMeta'
+        - type: object
+          properties:
+            data:
+              type: array
+              items:
+                $ref: '#/components/schemas/User'
+
+    CreateUser:
+      type: object
+      additionalProperties: false
+      required: [email, name, password, role]
+      properties:
+        email:
+          type: string
+          format: email
+        name:
+          type: string
+          maxLength: 100
+        password:
+          type: string
+          minLength: 8
+          maxLength: 128
+        role:
+          $ref: '#/components/schemas/Role'
+        companyId:
+          type: [integer, 'null']
+          description: Required for CUSTOMER, must be null for staff
+
+    UpdateUser:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        email:
+          type: string
+          format: email
+        name:
+          type: string
+        password:
+          type: string
+          minLength: 8
+        role:
+          $ref: '#/components/schemas/Role'
+        companyId:
+          type: [integer, 'null']
+        isActive:
+          type: boolean
+
+    CompanyDetail:
+      type: object
+      properties:
+        id:
+          type: integer
+        code:
+          type: string
+          examples: [HNF]
+        name:
+          type: string
+        contactEmail:
+          type: string
+          format: email
+        isActive:
+          type: boolean
+        userCount:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+
+    CompanyResponse:
+      type: object
+      properties:
+        data:
+          $ref: '#/components/schemas/CompanyDetail'
+
+    CompanyPage:
+      allOf:
+        - $ref: '#/components/schemas/PageMeta'
+        - type: object
+          properties:
+            data:
+              type: array
+              items:
+                $ref: '#/components/schemas/CompanyDetail'
+
+    CreateCompany:
+      type: object
+      additionalProperties: false
+      required: [code, name, contactEmail]
+      properties:
+        code:
+          type: string
+          pattern: '^[A-Za-z]{3}$'
+        name:
+          type: string
+        contactEmail:
+          type: string
+          format: email
+
+    UpdateCompany:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        name:
+          type: string
+        contactEmail:
+          type: string
+          format: email
+        isActive:
+          type: boolean
+
+    BlockType:
+      type: string
+      enum: [STANDARD, EMPTY, DG]
+
+    BlockSizeClass:
+      type: string
+      enum: [SMALL, LARGE]
+
+    BlockGeometry:
+      type: object
+      properties:
+        type:
+          $ref: '#/components/schemas/BlockType'
+        sizeClass:
+          $ref: '#/components/schemas/BlockSizeClass'
+        rows:
+          type: integer
+          minimum: 1
+          maximum: 99
+        bays:
+          type: integer
+          minimum: 1
+          maximum: 99
+        maxTier:
+          type: integer
+          minimum: 1
+          maximum: 9
+        mapX:
+          type: integer
+        mapY:
+          type: integer
+        gateDistanceM:
+          type: integer
+
+    Block:
+      allOf:
+        - type: object
+          properties:
+            id:
+              type: integer
+            code:
+              type: string
+              examples: [B]
+        - $ref: '#/components/schemas/BlockGeometry'
+        - type: object
+          properties:
+            occupancy:
+              type: object
+              properties:
+                capacitySlots:
+                  type: integer
+                usedSlots:
+                  type: integer
+                freeSlots:
+                  type: integer
+                occupancyPercent:
+                  type: number
+                teuCapacity:
+                  type: integer
+                teuUsed:
+                  type: integer
+
+    BlockResponse:
+      type: object
+      properties:
+        data:
+          $ref: '#/components/schemas/Block'
+
+    BlockPage:
+      allOf:
+        - $ref: '#/components/schemas/PageMeta'
+        - type: object
+          properties:
+            data:
+              type: array
+              items:
+                $ref: '#/components/schemas/Block'
+
+    CreateBlock:
+      allOf:
+        - type: object
+          required: [code, type, sizeClass, rows, bays, maxTier, mapX, mapY, gateDistanceM]
+          properties:
+            code:
+              type: string
+              pattern: '^[A-Za-z][A-Za-z0-9]?$'
+        - $ref: '#/components/schemas/BlockGeometry'
+
+    UpdateBlock:
+      allOf:
+        - $ref: '#/components/schemas/BlockGeometry'
+        - type: object
+          minProperties: 1
+
+    Tariff:
+      type: object
+      properties:
+        id:
+          type: integer
+        size:
+          type: string
+          enum: [FT20, FT40, FT45]
+        isDangerous:
+          type: boolean
+        freeDays:
+          type: integer
+        dailyRateCents:
+          type: integer
+          description: Euro cents per chargeable day
+
+    TariffPage:
+      allOf:
+        - $ref: '#/components/schemas/PageMeta'
+        - type: object
+          properties:
+            data:
+              type: array
+              items:
+                $ref: '#/components/schemas/Tariff'
+
+    UpdateTariff:
+      type: object
+      additionalProperties: false
+      required: [size, isDangerous]
+      properties:
+        size:
+          type: string
+          enum: [FT20, FT40, FT45]
+        isDangerous:
+          type: boolean
+        freeDays:
+          type: integer
+          minimum: 0
+          maximum: 365
+        dailyRateCents:
+          type: integer
+          minimum: 0
+
+    TimeSlot:
+      type: object
+      properties:
+        id:
+          type: integer
+        date:
+          type: string
+          format: date
+        startHour:
+          type: integer
+          minimum: 8
+          maximum: 16
+        startsAt:
+          type: string
+          format: date-time
+        endsAt:
+          type: string
+          format: date-time
+        capacity:
+          type: integer
+        booked:
+          type: integer
+        remaining:
+          type: integer
+        isFull:
+          type: boolean
+
+    UpdateCapacity:
+      type: object
+      additionalProperties: false
+      required: [capacity]
+      properties:
+        slotId:
+          type: integer
+        date:
+          type: string
+          format: date
+        capacity:
+          type: integer
+          minimum: 0
+          maximum: 100
+
+  parameters:
+    Id:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: integer
+    Page:
+      name: page
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+    PageSize:
+      name: pageSize
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 25
+    IsActive:
+      name: isActive
+      in: query
+      schema:
+        type: string
+        enum: ['true', 'false']
+    Search:
+      name: search
+      in: query
+      description: Part of the name, email or code
+      schema:
+        type: string
+
   responses:
+    NotFound:
+      description: Not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Conflict:
+      description: A business rule prevents this change
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
     MalformedRequest:
       description: The body is not valid JSON
       content:

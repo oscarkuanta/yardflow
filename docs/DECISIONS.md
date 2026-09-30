@@ -50,3 +50,19 @@ Record every decision that is not fixed by docs/SPEC.md: date, decision, reason.
 - **The login rate limiter keeps its counters in memory.** Reason: the demo runs as a single API instance. Several instances would need a shared store.
 - **`.env.example` also lists `NODE_ENV` and `LOG_LEVEL`.**
 - **Swagger UI is served at `/api/docs`, and the raw OpenAPI document at `/api/docs/openapi.json`.** A test checks that every documented operation is routed. The full route coverage test from section 9 follows in Phase 8.
+
+## 2026-09-30, Phase 3
+
+- **Every list endpoint uses one helper** for `page` (default 1), `pageSize` (default 25, maximum 100) and `sort=field:asc|desc`. Each list defines its own allowed sort fields. `GET /time-slots?date=` is the one exception: it returns the at most 9 slots of one day as `{ data }` without paging.
+- **Boolean query parameters accept only `true` or `false`.** Reason: `z.coerce.boolean()` would turn the string `"false"` into `true`.
+- **PATCH bodies are strict.** Unknown fields, including fields that may not change such as a company `code` or a block `code`, answer 422. Reason: a silent ignore would hide mistakes. Codes are not editable because container number prefixes and stored position codes depend on them.
+- **An admin cannot deactivate their own account or remove their own admin role** (`409 OWN_ACCESS_PROTECTED`). Reason: without this guard the only admin could lock everyone out of user management.
+- **Deactivating a user deletes their session rows at once.** A session row is found by its `"userId":N` text and confirmed by parsing the JSON, so user 1 never matches user 12. `requireAuth` still checks on every request as a second line of defence.
+- **A customer of a deactivated company counts as inactive:** they cannot log in (`LOGIN_FAILED` reason `INACTIVE_COMPANY`), and deactivating the company ends their sessions. Reason: `Company.isActive` exists in the schema, and this is the simplest meaning for it.
+- **`PATCH /tariffs` identifies the tariff by `size` and `isDangerous` in the body**, because the spec lists `PATCH /tariffs` without an id. Changes only affect invoices issued afterwards.
+- **A block's type and size class can only change while it is empty (`409 BLOCK_NOT_EMPTY`).** Reason: otherwise existing stacks could break the stacking rules. Shrinking is refused with `409 BLOCK_SHRINK_CUTS_STACKS` and lists every position that would be cut.
+- **Block limits: rows and bays 1 to 99, maximum tier 1 to 9.** Reason: position codes use two digits for row and bay and one for the tier.
+- **Time slots are created on the first read of a day from today up to 14 days ahead**, with `createMany(skipDuplicates)`, so two requests at once cannot create duplicates. Past days are only read, never created. Dates more than 14 days ahead answer 422.
+- **"Active bookings" for the capacity rule means `ACTIVE` plus `USED` pre-advices**, the same count that makes a slot full (section 6.6). Changing capacity locks the slot rows with `SELECT ... FOR UPDATE` inside the transaction, so a booking cannot slip in between the check and the update. A whole-day change is all or nothing.
+- **Services get the current time from an injected `clock`.** Reason: tests can use a fixed time.
+- **Audit `action` names so far: `CREATE`, `UPDATE`, `UPDATE_CAPACITY`, `LOGIN`, `LOGOUT`, `LOGIN_FAILED`.** Business actions from later phases add their own names, such as `GATE_OUT_DENIED`.

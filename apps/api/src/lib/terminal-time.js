@@ -73,3 +73,16 @@ export function calendarDateToDbDate({ year, month, day }) {
 export function formatCalendarDate({ year, month, day }, separator = '-') {
   return [year, String(month).padStart(2, '0'), String(day).padStart(2, '0')].join(separator);
 }
+
+export function dbDateToCalendarDate(date) {
+  return { year: date.getUTCFullYear(), month: date.getUTCMonth() + 1, day: date.getUTCDate() };
+}
+
+export function parseCalendarDate(text) {
+  const [year, month, day] = text.split('-').map(Number);
+  return { year, month, day };
+}
+
+export function compareCalendarDates(first, second) {
+  return calendarDateToDbDate(first).getTime() - calendarDateToDbDate(second).getTime();
+}
