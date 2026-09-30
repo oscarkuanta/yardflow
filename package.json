@@ -18,6 +18,7 @@
     "db:migrate": "npm run db:migrate --workspaces --if-present",
     "db:seed": "npm run db:seed --workspaces --if-present",
     "db:reset": "npm run db:reset --workspaces --if-present",
+    "db:studio": "npm run db:studio --workspaces --if-present",
     "dev": "npm run dev --workspaces --if-present",
     "lint": "eslint . && prettier --check .",
     "format": "prettier --write .",

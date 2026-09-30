@@ -1,0 +1,9 @@
+export const TERMINAL_NAME = 'YardFlow Demo Terminal';
+export const TERMINAL_TIME_ZONE = 'Europe/Berlin';
+export const FIRST_SLOT_HOUR = 8;
+export const LAST_SLOT_HOUR = 16;
+export const SUNDAY = 0;
+export const BOOKING_HORIZON_DAYS = 14;
+export const DEFAULT_SLOT_CAPACITY = 10;
+export const GATE_SLOT_TOLERANCE_MIN = 30;
+export const GATE_LANES = [1, 2];

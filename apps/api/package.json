@@ -1,0 +1,32 @@
+{
+  "name": "@yardflow/api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "postinstall": "prisma generate",
+    "db:generate": "prisma generate",
+    "db:migrate": "dotenv -e ../../.env -- prisma migrate dev",
+    "db:deploy": "dotenv -e ../../.env -- prisma migrate deploy",
+    "db:seed": "dotenv -e ../../.env -- node prisma/seed.js",
+    "db:reset": "dotenv -e ../../.env -- prisma migrate reset --force",
+    "db:studio": "dotenv -e ../../.env -- prisma studio",
+    "test": "cross-env NODE_OPTIONS=--experimental-vm-modules jest --runInBand",
+    "test:coverage": "cross-env NODE_OPTIONS=--experimental-vm-modules jest --runInBand --coverage"
+  },
+  "prisma": {
+    "seed": "node prisma/seed.js"
+  },
+  "devDependencies": {
+    "@jest/globals": "^30.5.2",
+    "cross-env": "^10.1.0",
+    "dotenv-cli": "^11.0.0",
+    "jest": "^30.5.2",
+    "prisma": "^6.19.3"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.19.3",
+    "@yardflow/shared": "^0.1.0",
+    "bcrypt": "^6.0.0"
+  }
+}

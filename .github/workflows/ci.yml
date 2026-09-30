@@ -7,6 +7,26 @@ on:
 jobs:
   lint-and-test:
     runs-on: ubuntu-latest
+
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: yardflow_test
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -proot"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=20
+
+    env:
+      DATABASE_URL: mysql://root:root@127.0.0.1:3306/yardflow_test
+      DATABASE_URL_TEST: mysql://root:root@127.0.0.1:3306/yardflow_test
+      TZ: Europe/Berlin
+
     steps:
       - uses: actions/checkout@v4
 
@@ -21,12 +41,17 @@ jobs:
       - name: Lint
         run: npm run lint
 
-      - name: Shared package tests with coverage
-        run: npm run test:coverage --workspace @yardflow/shared
+      - name: Apply Prisma migrations
+        run: npm run db:deploy --workspace @yardflow/api
 
-      - name: Upload coverage report
+      - name: Unit and integration tests with coverage
+        run: npm run test:coverage
+
+      - name: Upload coverage reports
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: coverage-shared
-          path: packages/shared/coverage
+          name: coverage
+          path: |
+            packages/shared/coverage
+            apps/api/coverage
