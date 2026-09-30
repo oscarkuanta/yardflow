@@ -126,74 +126,75 @@ enum NotificationType {
 }
 
 model Company {
-  id            Int             @id @default(autoincrement())
-  code          String          @unique @db.VarChar(3)
+  id            Int            @id @default(autoincrement())
+  code          String         @unique @db.VarChar(3)
   name          String
   contactEmail  String
-  isActive      Boolean         @default(true)
+  isActive      Boolean        @default(true)
   users         User[]
   containers    Container[]
   preAdvices    PreAdvice[]
   notifications Notification[]
-  createdAt     DateTime        @default(now())
+  createdAt     DateTime       @default(now())
 }
 
 model User {
-  id                 Int               @id @default(autoincrement())
-  email              String            @unique
-  name               String
-  passwordHash       String
-  role               Role
-  companyId          Int?
-  company            Company?          @relation(fields: [companyId], references: [id])
-  isActive           Boolean           @default(true)
-  movements          Movement[]
-  gateTransactions   GateTransaction[]
-  completedOrders    WorkOrder[]       @relation("CompletedBy")
-  placedHolds        CustomsHold[]     @relation("PlacedBy")
-  releasedHolds      CustomsHold[]     @relation("ReleasedBy")
-  paidInvoices       StorageInvoice[]  @relation("PaidMarkedBy")
-  auditLogs          AuditLog[]
-  lastLoginAt        DateTime?
-  createdAt          DateTime          @default(now())
+  id               Int               @id @default(autoincrement())
+  email            String            @unique
+  name             String
+  passwordHash     String
+  role             Role
+  companyId        Int?
+  company          Company?          @relation(fields: [companyId], references: [id])
+  isActive         Boolean           @default(true)
+  movements        Movement[]
+  gateTransactions GateTransaction[]
+  completedOrders  WorkOrder[]       @relation("CompletedBy")
+  placedHolds      CustomsHold[]     @relation("PlacedBy")
+  releasedHolds    CustomsHold[]     @relation("ReleasedBy")
+  paidInvoices     StorageInvoice[]  @relation("PaidMarkedBy")
+  auditLogs        AuditLog[]
+  lastLoginAt      DateTime?
+  createdAt        DateTime          @default(now())
 }
 
 model Block {
-  id             Int                 @id @default(autoincrement())
-  code           String              @unique @db.VarChar(2)
-  type           BlockType
-  sizeClass      BlockSizeClass
-  rows           Int
-  bays           Int
-  maxTier        Int
-  mapX           Int
-  mapY           Int
-  gateDistanceM  Int
-  positions      ContainerPosition[]
+  id            Int                 @id @default(autoincrement())
+  code          String              @unique @db.VarChar(2)
+  type          BlockType
+  sizeClass     BlockSizeClass
+  rows          Int
+  bays          Int
+  maxTier       Int
+  mapX          Int
+  mapY          Int
+  gateDistanceM Int
+  positions     ContainerPosition[]
 }
 
 model Container {
-  id               Int                 @id @default(autoincrement())
-  number           String              @unique @db.VarChar(11)
+  id               Int                @id @default(autoincrement())
+  number           String             @unique @db.VarChar(11)
   size             ContainerSize
-  isHighCube       Boolean             @default(false)
+  isHighCube       Boolean            @default(false)
   loadStatus       LoadStatus
-  isDangerous      Boolean             @default(false)
-  imoClass         String?             @db.VarChar(4)
+  isDangerous      Boolean            @default(false)
+  imoClass         String?            @db.VarChar(4)
   grossWeightKg    Int?
   ownerCompanyId   Int
-  ownerCompany     Company             @relation(fields: [ownerCompanyId], references: [id])
-  state            ContainerState      @default(EXPECTED)
+  ownerCompany     Company            @relation(fields: [ownerCompanyId], references: [id])
+  state            ContainerState     @default(EXPECTED)
   gateInAt         DateTime?
   departedAt       DateTime?
   position         ContainerPosition?
   movements        Movement[]
-  workOrders       WorkOrder[]
+  workOrders       WorkOrder[]        @relation("MovedContainer")
+  targetedOrders   WorkOrder[]        @relation("RelocationTarget")
   holds            CustomsHold[]
   invoices         StorageInvoice[]
   gateTransactions GateTransaction[]
   visitItems       VesselVisitItem[]
-  createdAt        DateTime            @default(now())
+  createdAt        DateTime           @default(now())
 }
 
 model ContainerPosition {
@@ -225,21 +226,24 @@ model Movement {
 }
 
 model WorkOrder {
-  id              Int             @id @default(autoincrement())
-  containerId     Int
-  container       Container       @relation(fields: [containerId], references: [id])
-  fromPosition    String          @db.VarChar(16)
-  toPosition      String          @db.VarChar(16)
-  sequence        Int
-  groupKey        String          @db.VarChar(36)
-  reason          String
-  status          WorkOrderStatus @default(OPEN)
-  completedById   Int?
-  completedBy     User?           @relation("CompletedBy", fields: [completedById], references: [id])
-  completedAt     DateTime?
-  createdAt       DateTime        @default(now())
+  id                Int             @id @default(autoincrement())
+  containerId       Int
+  container         Container       @relation("MovedContainer", fields: [containerId], references: [id])
+  targetContainerId Int
+  targetContainer   Container       @relation("RelocationTarget", fields: [targetContainerId], references: [id])
+  fromPosition      String          @db.VarChar(16)
+  toPosition        String          @db.VarChar(16)
+  sequence          Int
+  groupKey          String          @db.VarChar(36)
+  reason            String
+  status            WorkOrderStatus @default(OPEN)
+  completedById     Int?
+  completedBy       User?           @relation("CompletedBy", fields: [completedById], references: [id])
+  completedAt       DateTime?
+  createdAt         DateTime        @default(now())
 
   @@index([groupKey])
+  @@index([targetContainerId, status])
 }
 
 model VesselVisit {
@@ -311,20 +315,20 @@ model PreAdvice {
 }
 
 model GateTransaction {
-  id           Int            @id @default(autoincrement())
-  direction    GateDirection
-  preAdviceId  Int            @unique
-  preAdvice    PreAdvice      @relation(fields: [preAdviceId], references: [id])
-  containerId  Int
-  container    Container      @relation(fields: [containerId], references: [id])
-  truckPlate   String         @db.VarChar(15)
-  driverName   String
-  lane         Int
-  operatorId   Int
-  operator     User           @relation(fields: [operatorId], references: [id])
-  damages      DamageReport[]
-  noDamage     Boolean        @default(false)
-  createdAt    DateTime       @default(now())
+  id          Int            @id @default(autoincrement())
+  direction   GateDirection
+  preAdviceId Int            @unique
+  preAdvice   PreAdvice      @relation(fields: [preAdviceId], references: [id])
+  containerId Int
+  container   Container      @relation(fields: [containerId], references: [id])
+  truckPlate  String         @db.VarChar(15)
+  driverName  String
+  lane        Int
+  operatorId  Int
+  operator    User           @relation(fields: [operatorId], references: [id])
+  damages     DamageReport[]
+  noDamage    Boolean        @default(false)
+  createdAt   DateTime       @default(now())
 }
 
 model DamageReport {
@@ -381,14 +385,14 @@ model Tariff {
 }
 
 model Notification {
-  id        Int              @id @default(autoincrement())
-  companyId Int
-  company   Company          @relation(fields: [companyId], references: [id])
-  type      NotificationType
-  message   String
-  containerNumber String?    @db.VarChar(11)
-  readAt    DateTime?
-  createdAt DateTime         @default(now())
+  id              Int              @id @default(autoincrement())
+  companyId       Int
+  company         Company          @relation(fields: [companyId], references: [id])
+  type            NotificationType
+  message         String
+  containerNumber String?          @db.VarChar(11)
+  readAt          DateTime?
+  createdAt       DateTime         @default(now())
 
   @@index([companyId, readAt])
 }

@@ -83,21 +83,81 @@ export async function createBlock(prisma, overrides = {}) {
 
 let nextSerial = 1;
 
-export async function placeContainer(prisma, { block, row, bay, tier, companyId, size = 'FT40' }) {
-  const container = await prisma.container.create({
+export function nextContainerNumber() {
+  return generateContainerNumber('TSTU', nextSerial++);
+}
+
+export async function createContainer(prisma, { companyId, state = 'IN_YARD', ...attributes }) {
+  return prisma.container.create({
     data: {
-      number: generateContainerNumber('TSTU', nextSerial++),
-      size,
+      number: nextContainerNumber(),
+      size: 'FT40',
       loadStatus: 'FULL',
       ownerCompanyId: companyId,
-      state: 'IN_YARD',
-      gateInAt: new Date(),
+      state,
+      gateInAt: state === 'EXPECTED' ? null : new Date(),
+      ...attributes,
     },
   });
+}
+
+export async function placeContainer(prisma, { block, row, bay, tier, ...attributes }) {
+  const container = await createContainer(prisma, attributes);
   await prisma.containerPosition.create({
     data: { containerId: container.id, blockId: block.id, row, bay, tier },
   });
   return container;
+}
+
+export async function createSmallYard(prisma) {
+  const geometry = { rows: 2, bays: 3, maxTier: 3, mapX: 0, mapY: 0 };
+  return {
+    A: await createBlock(prisma, {
+      ...geometry,
+      code: 'A',
+      sizeClass: 'SMALL',
+      gateDistanceM: 10,
+    }),
+    B: await createBlock(prisma, { ...geometry, code: 'B', gateDistanceM: 40 }),
+    E: await createBlock(prisma, {
+      ...geometry,
+      code: 'E',
+      type: 'EMPTY',
+      rows: 1,
+      bays: 2,
+      gateDistanceM: 80,
+    }),
+    X: await createBlock(prisma, {
+      ...geometry,
+      code: 'X',
+      type: 'DG',
+      sizeClass: 'SMALL',
+      rows: 1,
+      bays: 2,
+      maxTier: 2,
+      gateDistanceM: 90,
+    }),
+  };
+}
+
+export async function createHold(prisma, { containerId, placedById, releasedAt = null }) {
+  return prisma.customsHold.create({
+    data: {
+      containerId,
+      reason: 'X-ray inspection requested',
+      placedById,
+      releasedById: releasedAt ? placedById : null,
+      releasedAt,
+    },
+  });
+}
+
+export function recordEvents(eventBus, eventNames) {
+  const received = [];
+  for (const eventName of eventNames) {
+    eventBus.subscribe(eventName, (payload) => received.push({ eventName, payload }));
+  }
+  return received;
 }
 
 export async function createTariffs(prisma) {

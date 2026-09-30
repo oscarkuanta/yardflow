@@ -22,6 +22,7 @@ export function createTestContext({
   loginAttemptsPerWindow = GENEROUS_LOGIN_LIMIT,
   prismaOverride,
   clock,
+  eventBus,
 } = {}) {
   const config = createTestConfig(configOverrides);
   const prisma = createPrismaClient(config);
@@ -33,6 +34,7 @@ export function createTestContext({
     logger: createLogger(config),
     loginAttemptsPerWindow,
     clock,
+    eventBus,
   });
   return {
     app,

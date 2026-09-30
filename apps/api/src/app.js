@@ -1,6 +1,7 @@
 import cors from 'cors';
 import express from 'express';
 import helmet from 'helmet';
+import { createEventBus } from './lib/event-bus.js';
 import { createRequestLogger } from './lib/request-logger.js';
 import { errorHandler, routeNotFound } from './middleware/error-handler.js';
 import { createSessionMiddleware } from './middleware/session.js';
@@ -22,6 +23,7 @@ export function createApp({
   logger,
   loginAttemptsPerWindow,
   clock = systemClock,
+  eventBus = createEventBus(),
 }) {
   const app = express();
   const sessionMiddleware = createSessionMiddleware({
@@ -33,6 +35,7 @@ export function createApp({
     app.set('trust proxy', 1);
   }
   app.locals.sessionMiddleware = sessionMiddleware;
+  app.locals.eventBus = eventBus;
   app.use(createRequestLogger({ logger, ignoredPathPrefix: DOCS_PATH }));
   app.use(
     helmet({
@@ -46,7 +49,7 @@ export function createApp({
   app.use(
     API_BASE_PATH,
     sessionMiddleware,
-    createApiRouter({ config, prisma, clock, loginAttemptsPerWindow }),
+    createApiRouter({ config, prisma, clock, eventBus, loginAttemptsPerWindow }),
   );
   app.use(DOCS_PATH, createDocsRouter(loadOpenApiDocument()));
   app.use(routeNotFound);

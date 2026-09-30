@@ -1,4 +1,5 @@
 import { afterAll, beforeAll, describe, expect, test } from '@jest/globals';
+import { generateContainerNumber } from '@yardflow/shared';
 import request from 'supertest';
 import { createUsersForAllRoles, loginAllRoles, resetDatabase } from '../helpers/fixtures.js';
 import { createTestContext } from '../helpers/test-app.js';
@@ -6,6 +7,8 @@ import { createTestContext } from '../helpers/test-app.js';
 const FIXED_NOW = new Date('2026-09-30T08:00:00Z');
 const ALL_ROLES = ['ADMIN', 'PLANNER', 'GATE_OPERATOR', 'CUSTOMER'];
 const STAFF = ['ADMIN', 'PLANNER', 'GATE_OPERATOR'];
+const PLANNING = ['ADMIN', 'PLANNER'];
+const UNKNOWN_CONTAINER = generateContainerNumber('ZZZU', 1);
 
 const ENDPOINTS = [
   ['get', '/users', ['ADMIN']],
@@ -21,6 +24,14 @@ const ENDPOINTS = [
   ['patch', '/tariffs', ['ADMIN']],
   ['get', '/time-slots?date=2026-10-01', ['ADMIN', 'CUSTOMER']],
   ['patch', '/time-slots', ['ADMIN']],
+  ['get', '/containers', ALL_ROLES],
+  ['get', `/containers/${UNKNOWN_CONTAINER}`, ALL_ROLES],
+  ['get', '/yard/map', STAFF],
+  ['get', '/yard/stacks/B/1/1', STAFF],
+  ['post', '/yard/suggestions', STAFF],
+  ['post', '/yard/moves', PLANNING],
+  ['get', '/work-orders', PLANNING],
+  ['post', '/work-orders/999999/complete', PLANNING],
 ];
 
 const CASES = ENDPOINTS.flatMap(([method, path, allowedRoles]) =>

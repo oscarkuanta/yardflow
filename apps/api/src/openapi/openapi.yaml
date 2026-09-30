@@ -27,8 +27,352 @@ tags:
     description: Storage tariffs per size and dangerous goods flag (Admin)
   - name: Time slots
     description: Hourly gate slots with capacity
+  - name: Containers
+    description: Search containers and read their detail. Customers see only their own company.
+  - name: Yard
+    description: Live yard map, stack side view, slot suggestion and moves
+  - name: Work orders
+    description: Relocation work orders that clear containers above a pickup or load
 
 paths:
+  /containers:
+    get:
+      tags: [Containers]
+      summary: Search and filter containers
+      description: Admin, Planner, Gate Operator and Customer. Customers only ever see their own company.
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+        - name: sort
+          in: query
+          description: 'One of number, gateInAt, createdAt, departedAt with :asc or :desc'
+          schema:
+            type: string
+            default: number:asc
+        - name: search
+          in: query
+          description: Part of the container number, spaces and case are ignored
+          schema:
+            type: string
+        - name: state
+          in: query
+          schema:
+            type: string
+            enum: [EXPECTED, IN_YARD, DEPARTED]
+        - name: size
+          in: query
+          schema:
+            $ref: '#/components/schemas/ContainerSize'
+        - name: loadStatus
+          in: query
+          schema:
+            type: string
+            enum: [FULL, EMPTY]
+        - name: isDangerous
+          in: query
+          schema:
+            type: string
+            enum: ['true', 'false']
+        - name: hasHold
+          in: query
+          schema:
+            type: string
+            enum: ['true', 'false']
+        - name: ownerCode
+          in: query
+          description: Company code, staff only
+          schema:
+            type: string
+        - name: blockCode
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: One page of containers
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ContainerPage'
+        '401':
+          $ref: '#/components/responses/NotAuthenticated'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+
+  /containers/{number}:
+    get:
+      tags: [Containers]
+      summary: Container detail with position, holds, invoices and history
+      description: A customer asking for another company's container gets 404, so ids do not leak.
+      parameters:
+        - name: number
+          in: path
+          required: true
+          description: ISO 6346 number, spaces and case are ignored
+          schema:
+            type: string
+            examples: [HNFU2045711]
+      responses:
+        '200':
+          description: The container
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/ContainerDetail'
+        '401':
+          $ref: '#/components/responses/NotAuthenticated'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          description: The number fails ISO 6346
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error:
+                  code: VALIDATION_FAILED
+                  message: Validation failed
+                  details:
+                    - field: params.number
+                      message: 'Invalid container number: check digit does not match'
+
+  /yard/map:
+    get:
+      tags: [Yard]
+      summary: All blocks with every stack
+      description: Admin, Planner and Gate Operator.
+      responses:
+        '200':
+          description: Blocks with geometry, occupancy and stacks
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/MapBlock'
+        '401':
+          $ref: '#/components/responses/NotAuthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /yard/stacks/{block}/{row}/{bay}:
+    get:
+      tags: [Yard]
+      summary: Side view of one stack, bottom tier first
+      parameters:
+        - name: block
+          in: path
+          required: true
+          schema:
+            type: string
+            examples: [B]
+        - name: row
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: bay
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: The stack
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/StackView'
+        '401':
+          $ref: '#/components/responses/NotAuthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+
+  /yard/suggestions:
+    post:
+      tags: [Yard]
+      summary: Top 3 slots for a container
+      description: |
+        Filters blocks by type and size class, drops full stacks and stacks with a different size on top,
+        then scores each stack: 100, plus 15 if partly filled, plus 20 if the same owner is on top,
+        minus 8 per tier of height, minus floor(distance to gate / 10).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SuggestionRequest'
+            example:
+              size: FT40
+              loadStatus: FULL
+              isDangerous: false
+              ownerCompanyId: 1
+      responses:
+        '200':
+          description: Up to 3 suggestions, best first
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Suggestion'
+        '401':
+          $ref: '#/components/responses/NotAuthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          description: No free slot for this container type
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+
+  /yard/moves:
+    post:
+      tags: [Yard]
+      summary: Move a top container to another stack
+      description: |
+        Admin and Planner. Only the top container of a stack can move. The target is a stack (B-02-05)
+        or a position (B-02-05-2); the tier is always the stack height plus one.
+        A broken stacking rule answers 409 STACKING_RULE_BROKEN with the rule in the message.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MoveRequest'
+            example:
+              containerNumber: HNFU 204571 1
+              to: B-02-05
+      responses:
+        '200':
+          description: Moved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/MoveResult'
+        '401':
+          $ref: '#/components/responses/NotAuthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Blocked, rule broken, or slot just taken
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                blocked:
+                  value:
+                    error:
+                      code: CONTAINER_BLOCKED
+                      message: Container is blocked by 2 containers above it
+                      details: []
+                taken:
+                  value:
+                    error:
+                      code: SLOT_TAKEN
+                      message: Slot was just taken, please pick another
+                      details: []
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+
+  /work-orders:
+    get:
+      tags: [Work orders]
+      summary: List work orders
+      description: Admin and Planner.
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+        - name: sort
+          in: query
+          description: 'One of id, createdAt, completedAt with :asc or :desc'
+          schema:
+            type: string
+            default: id:asc
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [OPEN, DONE, CANCELLED]
+        - name: groupKey
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: containerNumber
+          in: query
+          description: The moved container or the container the group clears the way for
+          schema:
+            type: string
+      responses:
+        '200':
+          description: One page of work orders
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkOrderPage'
+        '401':
+          $ref: '#/components/responses/NotAuthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+
+  /work-orders/{id}/complete:
+    post:
+      tags: [Work orders]
+      summary: Complete a work order in sequence
+      description: |
+        Moves the container to its planned slot as a RELOCATION. If the planned slot is no longer valid,
+        the next best slot is used and the reason is written to the audit log.
+        Sequence 1 of a group must be done before sequence 2.
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '200':
+          description: Completed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/WorkOrder'
+        '401':
+          $ref: '#/components/responses/NotAuthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
   /users:
     get:
       tags: [Users]
@@ -944,6 +1288,296 @@ components:
           type: integer
           minimum: 0
           maximum: 100
+
+    ContainerSize:
+      type: string
+      enum: [FT20, FT40, FT45]
+
+    ContainerSummary:
+      type: object
+      properties:
+        id:
+          type: integer
+        number:
+          type: string
+          examples: [HNFU2045711]
+        displayNumber:
+          type: string
+          examples: [HNFU 204571 1]
+        size:
+          $ref: '#/components/schemas/ContainerSize'
+        isHighCube:
+          type: boolean
+        loadStatus:
+          type: string
+          enum: [FULL, EMPTY]
+        isDangerous:
+          type: boolean
+        imoClass:
+          type: [string, 'null']
+        grossWeightKg:
+          type: [integer, 'null']
+        state:
+          type: string
+          enum: [EXPECTED, IN_YARD, DEPARTED]
+        gateInAt:
+          type: [string, 'null']
+          format: date-time
+        departedAt:
+          type: [string, 'null']
+          format: date-time
+        dwellDays:
+          type: [integer, 'null']
+        owner:
+          $ref: '#/components/schemas/Company'
+        positionCode:
+          type: [string, 'null']
+          examples: [B-02-03-1]
+        hasHold:
+          type: boolean
+
+    ContainerDetail:
+      allOf:
+        - $ref: '#/components/schemas/ContainerSummary'
+        - type: object
+          properties:
+            holds:
+              type: array
+              items:
+                type: object
+                properties:
+                  id:
+                    type: integer
+                  reason:
+                    type: string
+                  placedAt:
+                    type: string
+                    format: date-time
+                  releasedAt:
+                    type: [string, 'null']
+                    format: date-time
+                  isActive:
+                    type: boolean
+            invoices:
+              type: array
+              items:
+                type: object
+                properties:
+                  number:
+                    type: string
+                  amountCents:
+                    type: integer
+                  status:
+                    type: string
+                    enum: [UNPAID, PAID, VOID]
+            history:
+              type: array
+              items:
+                type: object
+                properties:
+                  type:
+                    type: string
+                    enum: [GATE_IN, GATE_OUT, DISCHARGE, LOAD, YARD_MOVE, RELOCATION]
+                  fromPosition:
+                    type: [string, 'null']
+                  toPosition:
+                    type: [string, 'null']
+                  at:
+                    type: string
+                    format: date-time
+            openWorkOrders:
+              description: Staff only
+              type: array
+              items:
+                $ref: '#/components/schemas/WorkOrder'
+
+    ContainerPage:
+      allOf:
+        - $ref: '#/components/schemas/PageMeta'
+        - type: object
+          properties:
+            data:
+              type: array
+              items:
+                $ref: '#/components/schemas/ContainerSummary'
+
+    MapBlock:
+      allOf:
+        - $ref: '#/components/schemas/Block'
+        - type: object
+          properties:
+            stacks:
+              type: array
+              items:
+                type: object
+                properties:
+                  row:
+                    type: integer
+                  bay:
+                    type: integer
+                  stackCode:
+                    type: string
+                    examples: [B-02-05]
+                  height:
+                    type: integer
+                  topSize:
+                    oneOf:
+                      - $ref: '#/components/schemas/ContainerSize'
+                      - type: 'null'
+                  hasHold:
+                    type: boolean
+                  hasDangerous:
+                    type: boolean
+
+    StackView:
+      type: object
+      properties:
+        blockCode:
+          type: string
+        row:
+          type: integer
+        bay:
+          type: integer
+        stackCode:
+          type: string
+        maxTier:
+          type: integer
+        height:
+          type: integer
+        tiers:
+          type: array
+          items:
+            type: object
+            properties:
+              tier:
+                type: integer
+              positionCode:
+                type: string
+              container:
+                type: object
+                properties:
+                  number:
+                    type: string
+                  size:
+                    $ref: '#/components/schemas/ContainerSize'
+                  owner:
+                    $ref: '#/components/schemas/Company'
+                  hasHold:
+                    type: boolean
+
+    SuggestionRequest:
+      type: object
+      additionalProperties: false
+      required: [size, loadStatus]
+      properties:
+        size:
+          $ref: '#/components/schemas/ContainerSize'
+        loadStatus:
+          type: string
+          enum: [FULL, EMPTY]
+        isDangerous:
+          type: boolean
+          default: false
+        ownerCompanyId:
+          type: [integer, 'null']
+
+    Suggestion:
+      type: object
+      properties:
+        blockCode:
+          type: string
+        row:
+          type: integer
+        bay:
+          type: integer
+        tier:
+          type: integer
+        positionCode:
+          type: string
+          examples: [B-01-01-2]
+        score:
+          type: integer
+          examples: [123]
+        distanceM:
+          type: integer
+          examples: [40]
+        maxTier:
+          type: integer
+        reasons:
+          type: array
+          items:
+            type: string
+          examples: [[Same owner below, Partly filled, Tier 2 of 5, 40 m to gate]]
+
+    MoveRequest:
+      type: object
+      additionalProperties: false
+      required: [containerNumber, to]
+      properties:
+        containerNumber:
+          type: string
+        to:
+          type: string
+          description: A stack like B-02-05 or a position like B-02-05-2
+
+    MoveResult:
+      type: object
+      properties:
+        containerNumber:
+          type: string
+        fromPosition:
+          type: string
+        toPosition:
+          type: string
+
+    WorkOrder:
+      type: object
+      properties:
+        id:
+          type: integer
+        groupKey:
+          type: string
+          format: uuid
+        sequence:
+          type: integer
+        status:
+          type: string
+          enum: [OPEN, DONE, CANCELLED]
+        reason:
+          type: string
+        containerNumber:
+          type: string
+        targetContainerNumber:
+          type: string
+        fromPosition:
+          type: string
+        toPosition:
+          type: string
+        completedBy:
+          oneOf:
+            - type: object
+              properties:
+                id:
+                  type: integer
+                name:
+                  type: string
+            - type: 'null'
+        completedAt:
+          type: [string, 'null']
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+
+    WorkOrderPage:
+      allOf:
+        - $ref: '#/components/schemas/PageMeta'
+        - type: object
+          properties:
+            data:
+              type: array
+              items:
+                $ref: '#/components/schemas/WorkOrder'
 
   parameters:
     Id:

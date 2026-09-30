@@ -15,5 +15,8 @@
     "@jest/globals": "^30.5.2",
     "cross-env": "^10.1.0",
     "jest": "^30.5.2"
+  },
+  "dependencies": {
+    "zod": "^4.6.5"
   }
 }
