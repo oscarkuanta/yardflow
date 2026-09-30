@@ -2,6 +2,8 @@ import { EventEmitter } from 'node:events';
 
 export const YARD_CHANGED = 'yard:changed';
 export const WORK_ORDER_CHANGED = 'workorder:changed';
+export const VESSEL_CHANGED = 'vessel:changed';
+export const NOTIFICATION_NEW = 'notification:new';
 
 export function createEventBus() {
   const emitter = new EventEmitter();

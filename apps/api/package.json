@@ -33,6 +33,7 @@
     "@yardflow/shared": "^0.1.0",
     "bcrypt": "^6.0.0",
     "cors": "^2.8.6",
+    "csv-parse": "^7.0.3",
     "express": "^5.2.1",
     "express-mysql-session": "^3.0.3",
     "express-rate-limit": "^8.7.0",

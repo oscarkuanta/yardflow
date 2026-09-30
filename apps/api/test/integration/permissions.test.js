@@ -32,6 +32,14 @@ const ENDPOINTS = [
   ['post', '/yard/moves', PLANNING],
   ['get', '/work-orders', PLANNING],
   ['post', '/work-orders/999999/complete', PLANNING],
+  ['get', '/vessel-visits', PLANNING],
+  ['post', '/vessel-visits', PLANNING],
+  ['get', '/vessel-visits/999999', PLANNING],
+  ['patch', '/vessel-visits/999999', PLANNING],
+  ['post', '/vessel-visits/999999/items', PLANNING],
+  ['post', '/vessel-visits/999999/items/import', PLANNING],
+  ['post', '/vessel-visits/999999/items/1/discharge', PLANNING],
+  ['post', '/vessel-visits/999999/items/1/load', PLANNING],
 ];
 
 const CASES = ENDPOINTS.flatMap(([method, path, allowedRoles]) =>

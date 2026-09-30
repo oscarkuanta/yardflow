@@ -25,15 +25,11 @@ export const suggestionsBody = z
   })
   .strict();
 
+export const targetPositionField = z
+  .string('Enter a target like B-02-05 or B-02-05-2')
+  .transform(parsePositionCode)
+  .refine((position) => position !== null, 'Use a stack like B-02-05 or a position like B-02-05-2');
+
 export const moveBody = z
-  .object({
-    containerNumber: containerNumberSchema,
-    to: z
-      .string('Enter a target like B-02-05 or B-02-05-2')
-      .transform(parsePositionCode)
-      .refine(
-        (position) => position !== null,
-        'Use a stack like B-02-05 or a position like B-02-05-2',
-      ),
-  })
+  .object({ containerNumber: containerNumberSchema, to: targetPositionField })
   .strict();

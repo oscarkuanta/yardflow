@@ -33,8 +33,319 @@ tags:
     description: Live yard map, stack side view, slot suggestion and moves
   - name: Work orders
     description: Relocation work orders that clear containers above a pickup or load
+  - name: Vessel visits
+    description: Vessel calls with discharge and load lists (Admin and Planner)
 
 paths:
+  /vessel-visits:
+    get:
+      tags: [Vessel visits]
+      summary: List vessel visits with progress
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+        - name: sort
+          in: query
+          description: 'One of id, eta, etd, vesselName, createdAt with :asc or :desc'
+          schema:
+            type: string
+            default: eta:asc
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [PLANNED, ARRIVED, WORKING, DEPARTED]
+        - $ref: '#/components/parameters/Search'
+      responses:
+        '200':
+          description: One page of visits
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VesselVisitPage'
+        '401':
+          $ref: '#/components/responses/NotAuthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    post:
+      tags: [Vessel visits]
+      summary: Create a vessel visit
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateVesselVisit'
+            example:
+              vesselName: Baltic Wren
+              imoNumber: '9705380'
+              voyage: 010E
+              eta: '2026-10-03T08:00:00Z'
+              etd: '2026-10-03T20:00:00Z'
+      responses:
+        '201':
+          description: Created with status PLANNED
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/VesselVisit'
+        '401':
+          $ref: '#/components/responses/NotAuthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+
+  /vessel-visits/{id}:
+    get:
+      tags: [Vessel visits]
+      summary: Visit detail with every discharge and load item
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '200':
+          description: The visit
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/VesselVisitDetail'
+        '401':
+          $ref: '#/components/responses/NotAuthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    patch:
+      tags: [Vessel visits]
+      summary: Change the schedule or the status
+      description: |
+        Status goes PLANNED → ARRIVED (sets ata) → WORKING (set by the first discharge or load) → DEPARTED (sets atd).
+        Departing with pending load items needs `departWithOpenItems: true` and is audit logged.
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateVesselVisit'
+            examples:
+              arrive:
+                value:
+                  status: ARRIVED
+              departWithOpenItems:
+                value:
+                  status: DEPARTED
+                  departWithOpenItems: true
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/VesselVisit'
+        '401':
+          $ref: '#/components/responses/NotAuthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+
+  /vessel-visits/{id}/items:
+    post:
+      tags: [Vessel visits]
+      summary: Add one discharge or load item
+      description: A discharge item creates the container as EXPECTED.
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VisitItemInput'
+            example:
+              containerNumber: CSQU 305438 3
+              size: FT40
+              isHighCube: true
+              loadStatus: FULL
+              isDangerous: false
+              grossWeightKg: 24500
+              ownerCode: HNF
+              direction: DISCHARGE
+      responses:
+        '201':
+          description: Added
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/VisitItem'
+        '401':
+          $ref: '#/components/responses/NotAuthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+
+  /vessel-visits/{id}/items/import:
+    post:
+      tags: [Vessel visits]
+      summary: Import discharge and load items from CSV
+      description: |
+        Send the file content as the body with `Content-Type: text/csv`. Columns, in any order:
+        `containerNumber,size,isHighCube,loadStatus,isDangerous,imoClass,grossWeightKg,ownerCode,direction`.
+        If any line is invalid, nothing is imported and every problem is reported with its line number.
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      requestBody:
+        required: true
+        content:
+          text/csv:
+            schema:
+              type: string
+            example: |
+              containerNumber,size,isHighCube,loadStatus,isDangerous,imoClass,grossWeightKg,ownerCode,direction
+              CSQU3054383,FT40,true,FULL,false,,24500,HNF,DISCHARGE
+      responses:
+        '201':
+          description: Imported
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      imported:
+                        type: integer
+                      discharge:
+                        type: integer
+                      load:
+                        type: integer
+        '401':
+          $ref: '#/components/responses/NotAuthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          description: One or more lines are invalid, nothing was imported
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error:
+                  code: VALIDATION_FAILED
+                  message: 1 line has problems, nothing was imported
+                  details:
+                    - line: 3
+                      field: containerNumber
+                      message: 'Invalid container number: check digit does not match'
+
+  /vessel-visits/{id}/items/{itemId}/discharge:
+    post:
+      tags: [Vessel visits]
+      summary: Confirm the discharge of one item into a chosen slot
+      description: |
+        Pick a slot from `POST /yard/suggestions`, or any stack or position that passes the stacking rules.
+        The container becomes IN_YARD, the owner is notified, and the visit becomes WORKING.
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - $ref: '#/components/parameters/ItemId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [to]
+              properties:
+                to:
+                  type: string
+                  examples: [B-02-05-2]
+      responses:
+        '200':
+          description: Discharged
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/CargoResult'
+        '401':
+          $ref: '#/components/responses/NotAuthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+
+  /vessel-visits/{id}/items/{itemId}/load:
+    post:
+      tags: [Vessel visits]
+      summary: Confirm the load of one item
+      description: |
+        The container must be in the yard without an active customs hold. If containers sit on top of it,
+        relocation work orders are created and the answer is 409 RELOCATION_PENDING with the work orders in details.
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - $ref: '#/components/parameters/ItemId'
+      responses:
+        '200':
+          description: Loaded, the container is DEPARTED
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/CargoResult'
+        '401':
+          $ref: '#/components/responses/NotAuthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Hold, not in yard, or waiting for relocations
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error:
+                  code: RELOCATION_PENDING
+                  message: Waiting for 2 relocations
+                  details: []
+
   /containers:
     get:
       tags: [Containers]
@@ -1579,7 +1890,202 @@ components:
               items:
                 $ref: '#/components/schemas/WorkOrder'
 
+    CargoCount:
+      type: object
+      properties:
+        total:
+          type: integer
+        done:
+          type: integer
+
+    VesselVisit:
+      type: object
+      properties:
+        id:
+          type: integer
+        vesselName:
+          type: string
+        imoNumber:
+          type: string
+          pattern: '^\d{7}$'
+        voyage:
+          type: string
+        eta:
+          type: string
+          format: date-time
+        etd:
+          type: string
+          format: date-time
+        ata:
+          type: [string, 'null']
+          format: date-time
+        atd:
+          type: [string, 'null']
+          format: date-time
+        status:
+          type: string
+          enum: [PLANNED, ARRIVED, WORKING, DEPARTED]
+        discharge:
+          $ref: '#/components/schemas/CargoCount'
+        load:
+          $ref: '#/components/schemas/CargoCount'
+        progressPercent:
+          type: integer
+
+    VesselVisitPage:
+      allOf:
+        - $ref: '#/components/schemas/PageMeta'
+        - type: object
+          properties:
+            data:
+              type: array
+              items:
+                $ref: '#/components/schemas/VesselVisit'
+
+    VesselVisitDetail:
+      allOf:
+        - $ref: '#/components/schemas/VesselVisit'
+        - type: object
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/VisitItem'
+
+    CreateVesselVisit:
+      type: object
+      additionalProperties: false
+      required: [vesselName, imoNumber, voyage, eta, etd]
+      properties:
+        vesselName:
+          type: string
+        imoNumber:
+          type: string
+          pattern: '^\d{7}$'
+        voyage:
+          type: string
+          maxLength: 10
+        eta:
+          type: string
+          format: date-time
+        etd:
+          type: string
+          format: date-time
+
+    UpdateVesselVisit:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        vesselName:
+          type: string
+        imoNumber:
+          type: string
+        voyage:
+          type: string
+        eta:
+          type: string
+          format: date-time
+        etd:
+          type: string
+          format: date-time
+        status:
+          type: string
+          enum: [ARRIVED, DEPARTED]
+        departWithOpenItems:
+          type: boolean
+
+    VisitItemInput:
+      type: object
+      additionalProperties: false
+      required: [containerNumber, size, loadStatus, ownerCode, direction]
+      properties:
+        containerNumber:
+          type: string
+        size:
+          $ref: '#/components/schemas/ContainerSize'
+        isHighCube:
+          type: boolean
+          default: false
+        loadStatus:
+          type: string
+          enum: [FULL, EMPTY]
+        isDangerous:
+          type: boolean
+          default: false
+        imoClass:
+          type: [string, 'null']
+          description: Required for dangerous goods, for example 3 or 2.1
+        grossWeightKg:
+          type: [integer, 'null']
+          minimum: 1000
+          maximum: 60000
+        ownerCode:
+          type: string
+          examples: [HNF]
+        direction:
+          type: string
+          enum: [DISCHARGE, LOAD]
+
+    VisitItem:
+      allOf:
+        - $ref: '#/components/schemas/VisitItemInput'
+        - type: object
+          properties:
+            id:
+              type: integer
+            visitId:
+              type: integer
+            displayNumber:
+              type: string
+            owner:
+              $ref: '#/components/schemas/Company'
+            status:
+              type: string
+              enum: [PENDING, DONE]
+            doneAt:
+              type: [string, 'null']
+              format: date-time
+            containerState:
+              type: [string, 'null']
+              enum: [EXPECTED, IN_YARD, DEPARTED, null]
+            positionCode:
+              type: [string, 'null']
+            hasHold:
+              type: boolean
+
+    CargoResult:
+      type: object
+      properties:
+        itemId:
+          type: integer
+        containerNumber:
+          type: string
+        positionCode:
+          type: string
+          description: Discharge only
+        fromPosition:
+          type: string
+          description: Load only
+        visit:
+          type: object
+          properties:
+            visitId:
+              type: integer
+            status:
+              type: string
+            doneCount:
+              type: integer
+            totalCount:
+              type: integer
+
   parameters:
+    ItemId:
+      name: itemId
+      in: path
+      required: true
+      schema:
+        type: integer
     Id:
       name: id
       in: path
