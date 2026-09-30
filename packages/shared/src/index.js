@@ -3,3 +3,4 @@ export * from './iso6346.js';
 export * from './position.js';
 export * from './schemas/container-number.js';
 export * from './stacking.js';
+export * from './truck-plate.js';

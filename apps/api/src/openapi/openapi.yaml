@@ -35,8 +35,414 @@ tags:
     description: Relocation work orders that clear containers above a pickup or load
   - name: Vessel visits
     description: Vessel calls with discharge and load lists (Admin and Planner)
+  - name: Pre-advices
+    description: Customer truck bookings with a 6-digit PIN
+  - name: Gate
+    description: Truck and PIN check, gate-in, gate-out checks and completion, EIR tickets
 
 paths:
+  /pre-advices:
+    get:
+      tags: [Pre-advices]
+      summary: List pre-advices
+      description: Admin and Customer. Customers see only their own company. Overdue pre-advices expire before the list is read.
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+        - name: sort
+          in: query
+          description: 'One of id, createdAt with :asc or :desc'
+          schema:
+            type: string
+            default: createdAt:desc
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [ACTIVE, USED, CANCELLED, EXPIRED]
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum: [DELIVERY, PICKUP]
+        - name: date
+          in: query
+          description: Date of the booked slot
+          schema:
+            type: string
+            format: date
+        - name: search
+          in: query
+          description: Part of the reference or the container number
+          schema:
+            type: string
+      responses:
+        '200':
+          description: One page of pre-advices
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PageMeta'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/PreAdvice'
+        '401':
+          $ref: '#/components/responses/NotAuthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    post:
+      tags: [Pre-advices]
+      summary: Book a time slot for a delivery or pickup
+      description: |
+        Customer only, for its own company. Returns the 6-digit PIN exactly once.
+        A pickup needs a container of the company in the yard and issues a storage invoice up to the end of the slot.
+        A delivery needs the container data and records the container as EXPECTED.
+        Slots can be booked from 60 minutes before they start up to 14 days ahead.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePreAdvice'
+            examples:
+              pickup:
+                value:
+                  type: PICKUP
+                  timeSlotId: 1
+                  containerNumber: HNFU 204571 1
+                  truckPlate: HH-YF 482
+                  driverName: Jan Becker
+              delivery:
+                value:
+                  type: DELIVERY
+                  timeSlotId: 1
+                  containerNumber: CSQU 305438 3
+                  truckPlate: HH-YF 175
+                  driverName: Mats Olsen
+                  size: FT40
+                  isHighCube: true
+                  loadStatus: FULL
+                  isDangerous: false
+                  imoClass: null
+                  grossWeightKg: 21000
+      responses:
+        '201':
+          description: Booked
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/PreAdviceWithPin'
+        '401':
+          $ref: '#/components/responses/NotAuthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+
+  /pre-advices/{id}/regenerate-pin:
+    post:
+      tags: [Pre-advices]
+      summary: Replace the PIN of an active pre-advice
+      description: Customer only. The old PIN stops working, the new one is shown once.
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '200':
+          description: New PIN
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/PreAdviceWithPin'
+        '401':
+          $ref: '#/components/responses/NotAuthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /pre-advices/{id}/cancel:
+    post:
+      tags: [Pre-advices]
+      summary: Cancel an active pre-advice
+      description: Admin or the owning customer. Cancelling a pickup cancels its open relocation work orders.
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '200':
+          description: Cancelled
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/PreAdvice'
+        '401':
+          $ref: '#/components/responses/NotAuthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /gate/verify-truck:
+    post:
+      tags: [Gate]
+      summary: Check truck plate and PIN (step 1 of gate-in and gate-out)
+      description: |
+        Admin and Gate Operator. Finds the active pre-advice of this plate whose slot is today and whose window
+        (slot start minus 30 minutes to slot end plus 30 minutes) contains now. Five wrong PINs for one plate
+        within 15 minutes lock the plate for 15 minutes. A successful check is remembered in the session for 30 minutes.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [truckPlate, pin, direction]
+              properties:
+                truckPlate:
+                  type: string
+                pin:
+                  type: string
+                  pattern: '^\d{6}$'
+                direction:
+                  type: string
+                  enum: [IN, OUT]
+            example:
+              truckPlate: HH-YF 482
+              pin: '482913'
+              direction: OUT
+      responses:
+        '200':
+          description: Verified
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      preAdvice:
+                        $ref: '#/components/schemas/PreAdvice'
+                      container:
+                        description: Pickup only, with position and hold flag
+                        type: [object, 'null']
+        '401':
+          $ref: '#/components/responses/NotAuthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Wrong PIN, with the attempts left
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+
+  /gate/in:
+    post:
+      tags: [Gate]
+      summary: Complete a gate-in with inspection and slot
+      description: |
+        Needs a verified truck. Mark damage per side or tick noDamage. The target is a suggested slot or a manual
+        stack or position that passes the stacking rules.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GateInRequest'
+            example:
+              preAdviceId: 1
+              containerNumber: CSQU 305438 3
+              lane: 1
+              damages:
+                - side: LEFT
+                  code: DENT
+                  note: Small dent near the door
+              to: B-02-05
+      responses:
+        '201':
+          description: Gated in
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/GateResult'
+        '401':
+          $ref: '#/components/responses/NotAuthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+
+  /gate/out/check:
+    post:
+      tags: [Gate]
+      summary: Run the four gate-out checks
+      description: |
+        Needs a verified truck. Checks: valid pre-advice in the slot window, plate and driver match,
+        no active customs hold, storage invoice paid up to now. A truck later than the paid period gets an
+        invoice for the extra days. When all pass and containers sit on top, relocation work orders are created.
+        A failed check is audit logged as GATE_OUT_DENIED.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GateOutRequest'
+      responses:
+        '200':
+          description: The result of every check
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/GateOutCheckResult'
+        '401':
+          $ref: '#/components/responses/NotAuthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+
+  /gate/out:
+    post:
+      tags: [Gate]
+      summary: Complete a gate-out
+      description: Runs the checks again. Refused while a check fails or a relocation is open.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GateOutRequest'
+            example:
+              preAdviceId: 1
+              truckPlate: HH-YF 482
+              driverName: Jan Becker
+              lane: 2
+      responses:
+        '201':
+          description: Gated out
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/GateResult'
+        '401':
+          $ref: '#/components/responses/NotAuthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+
+  /gate/transactions:
+    get:
+      tags: [Gate]
+      summary: Gate transaction history
+      description: Admin, Planner and Gate Operator.
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+        - name: sort
+          in: query
+          description: 'One of id, createdAt with :asc or :desc'
+          schema:
+            type: string
+            default: createdAt:desc
+        - name: direction
+          in: query
+          schema:
+            type: string
+            enum: [IN, OUT]
+        - name: date
+          in: query
+          description: Day in Europe/Berlin
+          schema:
+            type: string
+            format: date
+        - name: containerNumber
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: One page of gate transactions
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PageMeta'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/GateTransaction'
+        '401':
+          $ref: '#/components/responses/NotAuthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /gate/transactions/{id}/eir.pdf:
+    get:
+      tags: [Gate]
+      summary: EIR gate ticket as PDF
+      description: Staff, and customers for their own company only.
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '200':
+          description: The PDF
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+        '401':
+          $ref: '#/components/responses/NotAuthenticated'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
   /vessel-visits:
     get:
       tags: [Vessel visits]
@@ -2078,6 +2484,255 @@ components:
               type: integer
             totalCount:
               type: integer
+
+    PreAdvice:
+      type: object
+      properties:
+        id:
+          type: integer
+        reference:
+          type: string
+          examples: [PA-20260930-0001]
+        type:
+          type: string
+          enum: [DELIVERY, PICKUP]
+        status:
+          type: string
+          enum: [ACTIVE, USED, CANCELLED, EXPIRED]
+        containerNumber:
+          type: string
+        displayNumber:
+          type: string
+        truckPlate:
+          type: string
+        driverName:
+          type: string
+        company:
+          $ref: '#/components/schemas/Company'
+        timeSlot:
+          type: object
+          properties:
+            id:
+              type: integer
+            date:
+              type: string
+              format: date
+            startHour:
+              type: integer
+            startsAt:
+              type: string
+              format: date-time
+            endsAt:
+              type: string
+              format: date-time
+        gateWindow:
+          type: object
+          properties:
+            opensAt:
+              type: string
+              format: date-time
+            closesAt:
+              type: string
+              format: date-time
+        createdAt:
+          type: string
+          format: date-time
+
+    Invoice:
+      type: object
+      properties:
+        id:
+          type: integer
+        number:
+          type: string
+          examples: [INV-2026-00001]
+        periodFrom:
+          type: string
+          format: date-time
+        periodTo:
+          type: string
+          format: date-time
+        chargeableDays:
+          type: integer
+        amountCents:
+          type: integer
+        status:
+          type: string
+          enum: [UNPAID, PAID, VOID]
+
+    PreAdviceWithPin:
+      allOf:
+        - $ref: '#/components/schemas/PreAdvice'
+        - type: object
+          properties:
+            pin:
+              type: string
+              description: Shown only in this response
+              examples: ['482913']
+            invoice:
+              oneOf:
+                - $ref: '#/components/schemas/Invoice'
+                - type: 'null'
+
+    CreatePreAdvice:
+      type: object
+      required: [type, timeSlotId, containerNumber, truckPlate, driverName]
+      properties:
+        type:
+          type: string
+          enum: [DELIVERY, PICKUP]
+        timeSlotId:
+          type: integer
+        containerNumber:
+          type: string
+        truckPlate:
+          type: string
+          maxLength: 15
+        driverName:
+          type: string
+        size:
+          $ref: '#/components/schemas/ContainerSize'
+        isHighCube:
+          type: boolean
+        loadStatus:
+          type: string
+          enum: [FULL, EMPTY]
+        isDangerous:
+          type: boolean
+        imoClass:
+          type: [string, 'null']
+        grossWeightKg:
+          type: integer
+      description: The container fields are required for DELIVERY and not allowed for PICKUP.
+
+    GateInRequest:
+      type: object
+      additionalProperties: false
+      required: [preAdviceId, containerNumber, lane, to]
+      properties:
+        preAdviceId:
+          type: integer
+        containerNumber:
+          type: string
+        lane:
+          type: integer
+          enum: [1, 2]
+        noDamage:
+          type: boolean
+        damages:
+          type: array
+          maxItems: 12
+          items:
+            type: object
+            required: [side, code]
+            properties:
+              side:
+                type: string
+                enum: [FRONT, BACK, LEFT, RIGHT, TOP, FLOOR]
+              code:
+                type: string
+                enum: [DENT, HOLE, RUST, BROKEN, MISSING]
+              note:
+                type: string
+                maxLength: 200
+        to:
+          type: string
+          examples: [B-02-05]
+
+    GateOutRequest:
+      type: object
+      additionalProperties: false
+      required: [preAdviceId, truckPlate, driverName, lane]
+      properties:
+        preAdviceId:
+          type: integer
+        truckPlate:
+          type: string
+        driverName:
+          type: string
+        lane:
+          type: integer
+          enum: [1, 2]
+
+    GateOutCheckResult:
+      type: object
+      properties:
+        passed:
+          type: boolean
+        checks:
+          type: array
+          items:
+            type: object
+            properties:
+              key:
+                type: string
+                enum: [PRE_ADVICE, TRUCK_DRIVER, CUSTOMS, INVOICE]
+              passed:
+                type: boolean
+              message:
+                type: string
+        invoice:
+          oneOf:
+            - $ref: '#/components/schemas/Invoice'
+            - type: 'null'
+        relocations:
+          type: array
+          items:
+            $ref: '#/components/schemas/WorkOrder'
+        canComplete:
+          type: boolean
+
+    GateResult:
+      type: object
+      properties:
+        gateTransactionId:
+          type: integer
+        containerNumber:
+          type: string
+        positionCode:
+          type: string
+          description: Gate-in only
+        fromPosition:
+          type: string
+          description: Gate-out only
+        eirUrl:
+          type: string
+          examples: [/api/v1/gate/transactions/12/eir.pdf]
+
+    GateTransaction:
+      type: object
+      properties:
+        id:
+          type: integer
+        direction:
+          type: string
+          enum: [IN, OUT]
+        lane:
+          type: integer
+        truckPlate:
+          type: string
+        driverName:
+          type: string
+        containerNumber:
+          type: string
+        displayNumber:
+          type: string
+        operator:
+          type: object
+          properties:
+            id:
+              type: integer
+            name:
+              type: string
+        noDamage:
+          type: boolean
+        damageCount:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+        eirUrl:
+          type: string
 
   parameters:
     ItemId:

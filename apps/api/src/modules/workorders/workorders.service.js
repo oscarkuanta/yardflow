@@ -56,6 +56,58 @@ async function findOpenGroup(transaction, targetContainerId) {
   });
 }
 
+export function waitingForRelocationsMessage(count) {
+  return `Waiting for ${count} ${count === 1 ? 'relocation' : 'relocations'}`;
+}
+
+export function relocationPending(workOrders) {
+  return conflict(
+    'RELOCATION_PENDING',
+    waitingForRelocationsMessage(workOrders.length),
+    workOrders.map(toWorkOrderResponse),
+  );
+}
+
+export function publishWorkOrderChanges(eventBus, workOrders) {
+  for (const workOrder of workOrders) {
+    eventBus.publish(WORK_ORDER_CHANGED, {
+      id: workOrder.id,
+      groupKey: workOrder.groupKey,
+      status: workOrder.status,
+    });
+  }
+}
+
+export async function requestRelocations(transaction, { container, reason, actor, auditService }) {
+  const openGroup = await findOpenGroup(transaction, container.id);
+  if (openGroup.length > 0) {
+    return { workOrders: openGroup, created: false };
+  }
+  const stack = await loadStack(transaction, container.position.block, container.position);
+  if (stack.height <= container.position.tier) {
+    return null;
+  }
+  const workOrders = await createRelocationWorkOrders(transaction, {
+    targetContainerId: container.id,
+    reason,
+    actor,
+    auditService,
+  });
+  return { workOrders, created: true };
+}
+
+export async function cancelOpenRelocations(transaction, targetContainerId) {
+  const openGroup = await findOpenGroup(transaction, targetContainerId);
+  if (openGroup.length === 0) {
+    return [];
+  }
+  await transaction.workOrder.updateMany({
+    where: { id: { in: openGroup.map((workOrder) => workOrder.id) } },
+    data: { status: 'CANCELLED' },
+  });
+  return openGroup.map((workOrder) => ({ ...workOrder, status: 'CANCELLED' }));
+}
+
 export async function createRelocationWorkOrders(
   transaction,
   { targetContainerId, reason, actor, auditService },

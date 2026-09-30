@@ -79,7 +79,7 @@ describe('app basics', () => {
       const operations = Object.entries(document.paths).flatMap(([path, item]) =>
         HTTP_METHODS.filter((method) => item[method]).map((method) => [method, path]),
       );
-      expect(operations.length).toBeGreaterThanOrEqual(33);
+      expect(operations.length).toBeGreaterThanOrEqual(43);
       for (const [method, path] of operations) {
         const response = await request(app)[method](`/api/v1${path}`);
         expect(response.body.error?.code).not.toBe('ROUTE_NOT_FOUND');

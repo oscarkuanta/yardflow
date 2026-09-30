@@ -1,6 +1,7 @@
 import { TERMINAL_TIME_ZONE } from '../../src/config/terminal.js';
 
-const euroFormatter = new Intl.NumberFormat('en-IE', { style: 'currency', currency: 'EUR' });
+export { formatEuroCents } from '../../src/lib/format.js';
+
 const terminalTimeFormatter = new Intl.DateTimeFormat('en-GB', {
   timeZone: TERMINAL_TIME_ZONE,
   weekday: 'short',
@@ -10,10 +11,6 @@ const terminalTimeFormatter = new Intl.DateTimeFormat('en-GB', {
   minute: '2-digit',
   hourCycle: 'h23',
 });
-
-export function formatEuroCents(cents) {
-  return euroFormatter.format(cents / 100);
-}
 
 export function formatTerminalTime(date) {
   return terminalTimeFormatter.format(date);

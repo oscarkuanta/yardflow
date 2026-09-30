@@ -8,6 +8,7 @@ const FIXED_NOW = new Date('2026-09-30T08:00:00Z');
 const ALL_ROLES = ['ADMIN', 'PLANNER', 'GATE_OPERATOR', 'CUSTOMER'];
 const STAFF = ['ADMIN', 'PLANNER', 'GATE_OPERATOR'];
 const PLANNING = ['ADMIN', 'PLANNER'];
+const GATE_STAFF = ['ADMIN', 'GATE_OPERATOR'];
 const UNKNOWN_CONTAINER = generateContainerNumber('ZZZU', 1);
 
 const ENDPOINTS = [
@@ -40,6 +41,16 @@ const ENDPOINTS = [
   ['post', '/vessel-visits/999999/items/import', PLANNING],
   ['post', '/vessel-visits/999999/items/1/discharge', PLANNING],
   ['post', '/vessel-visits/999999/items/1/load', PLANNING],
+  ['get', '/pre-advices', ['ADMIN', 'CUSTOMER']],
+  ['post', '/pre-advices', ['CUSTOMER']],
+  ['post', '/pre-advices/999999/regenerate-pin', ['CUSTOMER']],
+  ['post', '/pre-advices/999999/cancel', ['ADMIN', 'CUSTOMER']],
+  ['post', '/gate/verify-truck', GATE_STAFF],
+  ['post', '/gate/in', GATE_STAFF],
+  ['post', '/gate/out/check', GATE_STAFF],
+  ['post', '/gate/out', GATE_STAFF],
+  ['get', '/gate/transactions', STAFF],
+  ['get', '/gate/transactions/999999/eir.pdf', ALL_ROLES],
 ];
 
 const CASES = ENDPOINTS.flatMap(([method, path, allowedRoles]) =>

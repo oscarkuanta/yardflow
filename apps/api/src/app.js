@@ -5,6 +5,9 @@ import { createEventBus } from './lib/event-bus.js';
 import { createRequestLogger } from './lib/request-logger.js';
 import { errorHandler, routeNotFound } from './middleware/error-handler.js';
 import { createSessionMiddleware } from './middleware/session.js';
+import { createAuditService } from './modules/audit/audit.service.js';
+import { createPinLockout } from './modules/gate/pin-lockout.js';
+import { createPreAdviceExpiry } from './modules/preadvices/preadvice-expiry.js';
 import { createDocsRouter, loadOpenApiDocument } from './openapi/docs.js';
 import { createApiRouter } from './routes.js';
 
@@ -31,11 +34,20 @@ export function createApp({
     isProduction: config.isProduction,
     store: sessionStore,
   });
+  const auditService = createAuditService({ prisma });
+  const preAdviceExpiry = createPreAdviceExpiry({
+    prisma,
+    auditService,
+    eventBus,
+    clock,
+    toleranceMin: config.gateSlotToleranceMin,
+  });
   if (config.isProduction) {
     app.set('trust proxy', 1);
   }
   app.locals.sessionMiddleware = sessionMiddleware;
   app.locals.eventBus = eventBus;
+  app.locals.preAdviceExpiry = preAdviceExpiry;
   app.use(createRequestLogger({ logger, ignoredPathPrefix: DOCS_PATH }));
   app.use(
     helmet({
@@ -49,7 +61,16 @@ export function createApp({
   app.use(
     API_BASE_PATH,
     sessionMiddleware,
-    createApiRouter({ config, prisma, clock, eventBus, loginAttemptsPerWindow }),
+    createApiRouter({
+      config,
+      prisma,
+      clock,
+      eventBus,
+      auditService,
+      preAdviceExpiry,
+      pinLockout: createPinLockout(),
+      loginAttemptsPerWindow,
+    }),
   );
   app.use(DOCS_PATH, createDocsRouter(loadOpenApiDocument()));
   app.use(routeNotFound);

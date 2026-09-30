@@ -14,3 +14,20 @@ export function calculateStorageFee(gateInAt, periodTo, tariff) {
     amountCents: chargeableDays * tariff.dailyRateCents,
   };
 }
+
+export function calculateExtensionFee(gateInAt, billedUntil, periodTo, tariff) {
+  if (periodTo.getTime() < billedUntil.getTime()) {
+    throw new Error('periodTo must not be before billedUntil');
+  }
+  const total = calculateStorageFee(gateInAt, periodTo, tariff);
+  const billed = calculateStorageFee(gateInAt, billedUntil, tariff);
+  const days = total.days - billed.days;
+  const chargeableDays = total.chargeableDays - billed.chargeableDays;
+  return {
+    days,
+    freeDays: days - chargeableDays,
+    chargeableDays,
+    dailyRateCents: tariff.dailyRateCents,
+    amountCents: chargeableDays * tariff.dailyRateCents,
+  };
+}

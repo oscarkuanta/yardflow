@@ -152,6 +152,63 @@ export async function createHold(prisma, { containerId, placedById, releasedAt =
   });
 }
 
+export async function createTimeSlot(prisma, { date, startHour, capacity = 10 }) {
+  return prisma.timeSlot.create({
+    data: { date: new Date(`${date}T00:00:00Z`), startHour, capacity },
+  });
+}
+
+export async function createBookedPreAdvice(
+  prisma,
+  { companyId, timeSlotId, type, containerNumber, truckPlate, driverName, pin, status = 'ACTIVE' },
+) {
+  const deliveryData =
+    type === 'DELIVERY'
+      ? {
+          size: 'FT40',
+          isHighCube: true,
+          loadStatus: 'FULL',
+          isDangerous: false,
+          grossWeightKg: 21000,
+        }
+      : {};
+  return prisma.preAdvice.create({
+    data: {
+      reference: `PA-TEST-${nextSerial++}`,
+      companyId,
+      type,
+      containerNumber,
+      ...deliveryData,
+      truckPlate,
+      driverName,
+      pinHash: bcrypt.hashSync(pin, FAST_BCRYPT_ROUNDS),
+      timeSlotId,
+      status,
+    },
+  });
+}
+
+export async function createInvoice(
+  prisma,
+  { containerId, status = 'PAID', periodFrom, periodTo, amountCents = 0 },
+) {
+  return prisma.storageInvoice.create({
+    data: {
+      number: `INV-TEST-${nextSerial++}`,
+      containerId,
+      periodFrom,
+      periodTo,
+      days: 1,
+      freeDays: 5,
+      chargeableDays: 0,
+      dailyRateCents: 1500,
+      amountCents,
+      status,
+      paidAt: status === 'PAID' ? periodFrom : null,
+    },
+  });
+}
+
 export function recordEvents(eventBus, eventNames) {
   const received = [];
   for (const eventName of eventNames) {

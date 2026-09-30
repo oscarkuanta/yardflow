@@ -1,29 +1,16 @@
 import { formatContainerNumber } from '@yardflow/shared';
 import { conflict, notFound } from '../../lib/errors.js';
-import {
-  NOTIFICATION_NEW,
-  VESSEL_CHANGED,
-  WORK_ORDER_CHANGED,
-  YARD_CHANGED,
-} from '../../lib/event-bus.js';
+import { NOTIFICATION_NEW, VESSEL_CHANGED, YARD_CHANGED } from '../../lib/event-bus.js';
 import { createNotification } from '../notifications/notifications.js';
 import {
-  createRelocationWorkOrders,
-  toWorkOrderResponse,
+  publishWorkOrderChanges,
+  relocationPending,
+  requestRelocations,
 } from '../workorders/workorders.service.js';
 import { placeArrivingContainer, positionCodeOf, yardChanges } from '../yard/placement.js';
-import { POSITION_WRITE_TRANSACTION, loadStack, lockBlocks } from '../yard/yard-state.js';
+import { POSITION_WRITE_TRANSACTION, lockBlocks } from '../yard/yard-state.js';
 import { isAtBerth, statusAfterCargoWork } from './vessel-status.js';
 import { attributesOf, findVisitOrThrow, vesselProgress } from './vessel-queries.js';
-
-function relocationPending(workOrders) {
-  const noun = workOrders.length === 1 ? 'relocation' : 'relocations';
-  return conflict(
-    'RELOCATION_PENDING',
-    `Waiting for ${workOrders.length} ${noun}`,
-    workOrders.map(toWorkOrderResponse),
-  );
-}
 
 async function findCargoItem(transaction, { visitId, itemId, direction }) {
   const visit = await findVisitOrThrow(transaction, visitId);
@@ -160,32 +147,6 @@ export function createVesselCargoService({ prisma, auditService, eventBus, clock
     };
   }
 
-  async function relocationsFor(transaction, { container, visit, actor }) {
-    const openGroup = await transaction.workOrder.findMany({
-      where: { targetContainerId: container.id, status: 'OPEN' },
-      include: {
-        container: { select: { number: true } },
-        targetContainer: { select: { number: true } },
-        completedBy: { select: { id: true, name: true } },
-      },
-      orderBy: { sequence: 'asc' },
-    });
-    if (openGroup.length > 0) {
-      return { workOrders: openGroup, created: false };
-    }
-    const stack = await loadStack(transaction, container.position.block, container.position);
-    if (stack.height <= container.position.tier) {
-      return null;
-    }
-    const workOrders = await createRelocationWorkOrders(transaction, {
-      targetContainerId: container.id,
-      reason: `Clear the way to load onto ${visit.vesselName} ${visit.voyage}`,
-      actor,
-      auditService,
-    });
-    return { workOrders, created: true };
-  }
-
   async function confirmLoad({ visitId, itemId }, actor) {
     const outcome = await prisma.$transaction(async (transaction) => {
       const { visit, item } = await findCargoItem(transaction, {
@@ -195,7 +156,12 @@ export function createVesselCargoService({ prisma, auditService, eventBus, clock
       });
       const container = await loadableContainer(transaction, item);
       await lockBlocks(transaction, [container.position.blockId]);
-      const relocations = await relocationsFor(transaction, { container, visit, actor });
+      const relocations = await requestRelocations(transaction, {
+        container,
+        reason: `Clear the way to load onto ${visit.vesselName} ${visit.voyage}`,
+        actor,
+        auditService,
+      });
       if (relocations) {
         return { relocations };
       }
@@ -241,13 +207,7 @@ export function createVesselCargoService({ prisma, auditService, eventBus, clock
     if (outcome.relocations) {
       const { workOrders, created } = outcome.relocations;
       if (created) {
-        for (const workOrder of workOrders) {
-          eventBus.publish(WORK_ORDER_CHANGED, {
-            id: workOrder.id,
-            groupKey: workOrder.groupKey,
-            status: workOrder.status,
-          });
-        }
+        publishWorkOrderChanges(eventBus, workOrders);
       }
       throw relocationPending(workOrders);
     }

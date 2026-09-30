@@ -1,17 +1,15 @@
-import {
-  ContainerSize,
-  LoadStatus,
-  VesselVisitStatus,
-  VisitDirection,
-  containerNumberSchema,
-} from '@yardflow/shared';
+import { VesselVisitStatus, VisitDirection, containerNumberSchema } from '@yardflow/shared';
 import { z } from 'zod';
+import {
+  checkImoClass,
+  grossWeightField,
+  imoClassField,
+  loadStatusField,
+  sizeField,
+} from '../../lib/cargo-fields.js';
 import { listQuerySchema } from '../../lib/pagination.js';
 import { atLeastOneField, searchQuery } from '../../lib/schemas.js';
 import { targetPositionField } from '../yard/yard.schemas.js';
-
-export const MIN_GROSS_WEIGHT_KG = 1000;
-export const MAX_GROSS_WEIGHT_KG = 60000;
 
 const dateTimeField = z.iso
   .datetime({
@@ -62,23 +60,12 @@ export const listVisitsQuery = listQuerySchema({
 export const visitItemSchema = z
   .object({
     containerNumber: containerNumberSchema,
-    size: z.enum(Object.values(ContainerSize), 'Size must be FT20, FT40 or FT45'),
+    size: sizeField,
     isHighCube: z.boolean('isHighCube must be true or false').default(false),
-    loadStatus: z.enum(Object.values(LoadStatus), 'Load status must be FULL or EMPTY'),
+    loadStatus: loadStatusField,
     isDangerous: z.boolean('isDangerous must be true or false').default(false),
-    imoClass: z
-      .string()
-      .trim()
-      .regex(/^[1-9](\.[1-6])?$/, 'IMO class must look like 3 or 2.1')
-      .nullable()
-      .default(null),
-    grossWeightKg: z
-      .number('Gross weight must be a whole number of kilograms')
-      .int('Gross weight must be a whole number of kilograms')
-      .min(MIN_GROSS_WEIGHT_KG, `Gross weight must be at least ${MIN_GROSS_WEIGHT_KG} kg`)
-      .max(MAX_GROSS_WEIGHT_KG, `Gross weight must be at most ${MAX_GROSS_WEIGHT_KG} kg`)
-      .nullable()
-      .default(null),
+    imoClass: imoClassField,
+    grossWeightKg: grossWeightField.nullable().default(null),
     ownerCode: z
       .string('Enter the owner company code')
       .trim()
@@ -87,22 +74,7 @@ export const visitItemSchema = z
     direction: z.enum(Object.values(VisitDirection), 'Direction must be DISCHARGE or LOAD'),
   })
   .strict()
-  .superRefine((item, context) => {
-    if (item.isDangerous && item.imoClass === null) {
-      context.addIssue({
-        code: 'custom',
-        path: ['imoClass'],
-        message: 'Dangerous goods need an IMO class',
-      });
-    }
-    if (!item.isDangerous && item.imoClass !== null) {
-      context.addIssue({
-        code: 'custom',
-        path: ['imoClass'],
-        message: 'Only dangerous goods have an IMO class',
-      });
-    }
-  });
+  .superRefine(checkImoClass);
 
 export const visitParams = z.object({ id: z.coerce.number().int().positive() });
 
