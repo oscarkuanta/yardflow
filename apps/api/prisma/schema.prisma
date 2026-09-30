@@ -408,3 +408,11 @@ model AuditLog {
   @@index([entity, entityId])
   @@index([createdAt])
 }
+
+model Session {
+  sessionId String  @id @map("session_id") @db.VarChar(128)
+  expires   Int     @db.UnsignedInt
+  data      String? @db.MediumText
+
+  @@map("sessions")
+}

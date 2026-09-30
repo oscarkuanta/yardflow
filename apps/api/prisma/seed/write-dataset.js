@@ -24,6 +24,7 @@ export const INSERT_ORDER = [
 ];
 
 const DELETE_ORDER = [
+  'session',
   'auditLog',
   'notification',
   'storageInvoice',

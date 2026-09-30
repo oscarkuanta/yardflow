@@ -33,3 +33,20 @@ Record every decision that is not fixed by docs/SPEC.md: date, decision, reason.
 - **`packages/shared` gained `enums.js`, `position.js` and `stacking.js`.** Reason: the web app cannot import Prisma. A test checks that the shared enums match the Prisma schema exactly.
 - **Terminal time uses `Intl.DateTimeFormat` with `Europe/Berlin` instead of a date library.** Reason: we only need a few conversions, and the tests cover both daylight saving time switches.
 - **A `db:studio` script opens Prisma Studio.** Reason: it lets the owner browse the seeded data in the browser before the web app exists.
+
+## 2026-09-30, Phase 2
+
+- **The session table is a Prisma model (`Session`, mapped to `sessions`), and `express-mysql-session` runs with `createDatabaseTable: false`.** Reason: if the store created the table itself, `prisma migrate dev` would report it as drift and ask to reset the database. The seed also clears sessions, so a demo reset logs everyone out.
+- **Every successful response puts its payload under `data`**, for example `{ "data": { ...user } }`. Lists will add `page`, `pageSize` and `total` (section 6.15). Reason: one shape for single items and lists is easier for the web client.
+- **Unexpected errors become `500 INTERNAL_ERROR` without internal details, and are logged.** Client errors from Express itself (for example a body over 100 kB) keep their 4xx status with the code `BAD_REQUEST`. Invalid JSON is `400 MALFORMED_REQUEST`.
+- **Modules are built with factory functions** such as `createApp`, `createAuthRouter` and `createAuthService`, which receive `prisma` and other services as arguments. Reason: tests can pass a test database, a fake Prisma client or a different rate limit without mocking imports. It works like Laravel's service container, but by hand.
+- **`requireAuth` loads the user from the database on every request.** If the user is gone or inactive, it destroys the session and answers 401. Reason: this is the simplest way to meet "existing sessions are destroyed when they are deactivated" in section 3, at the cost of one small indexed query per request.
+- **Login answers the same `401 INVALID_CREDENTIALS` for an unknown email, a wrong password and an inactive user**, and compares against a dummy bcrypt hash when the email is unknown. Reason: an attacker cannot find out which emails exist. The audit row `LOGIN_FAILED` stores the real reason for the admin. For an unknown email, the `entityId` is the email that was tried.
+- **Login regenerates the session.** Reason: this prevents session fixation. The cookie is `yardflow.sid`, httpOnly, `SameSite=Lax`, and lasts 8 hours, renewed on every request. It is `Secure` only in production.
+- **Validated input is stored on `request.validated`.** Reason: in Express 5 `request.query` is read-only, so the parsed and converted values cannot be written back.
+- **The health module has only a routes file.** Reason: it is one query with no business rules, so a controller, service and schema file would be empty.
+- **Helmet's `upgrade-insecure-requests` CSP directive is only sent in production.** Reason: Safari applies it to `http://localhost` and breaks local development.
+- **Request logs are one line per request (method, URL, status, time).** Swagger UI's static files are not logged. In development the output goes through `pino-pretty`; in production it stays JSON.
+- **The login rate limiter keeps its counters in memory.** Reason: the demo runs as a single API instance. Several instances would need a shared store.
+- **`.env.example` also lists `NODE_ENV` and `LOG_LEVEL`.**
+- **Swagger UI is served at `/api/docs`, and the raw OpenAPI document at `/api/docs/openapi.json`.** A test checks that every documented operation is routed. The full route coverage test from section 9 follows in Phase 8.

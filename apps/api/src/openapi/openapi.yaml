@@ -1,0 +1,256 @@
+openapi: 3.1.0
+info:
+  title: YardFlow API
+  version: 0.1.0
+  description: |
+    REST API of YardFlow, a container yard management system for one container terminal.
+
+    Log in with `POST /auth/login` first. The API answers with an httpOnly session cookie
+    that Swagger UI sends automatically with every following request.
+
+    Demo logins (password `demo1234`): `admin@yardflow.dev`, `planner@yardflow.dev`,
+    `gate@yardflow.dev`, `ops@hansenorth.example`, `ops@nordtrans.example`.
+servers:
+  - url: /api/v1
+tags:
+  - name: Auth
+    description: Log in, log out and read the current user
+  - name: System
+    description: Health and liveness
+
+paths:
+  /health:
+    get:
+      tags: [System]
+      summary: Liveness and database check
+      security: []
+      responses:
+        '200':
+          description: The API runs and the database answers
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Health'
+        '503':
+          description: The database does not answer
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Health'
+
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: Log in with email and password
+      description: Rate limited to 10 attempts per 15 minutes per IP address.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+            example:
+              email: admin@yardflow.dev
+              password: demo1234
+      responses:
+        '200':
+          description: Logged in. The response sets the session cookie.
+          headers:
+            Set-Cookie:
+              schema:
+                type: string
+              description: httpOnly session cookie `yardflow.sid`
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '400':
+          $ref: '#/components/responses/MalformedRequest'
+        '401':
+          description: Email or password is incorrect, or the user is inactive
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error:
+                  code: INVALID_CREDENTIALS
+                  message: Email or password is incorrect
+                  details: []
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+
+  /auth/logout:
+    post:
+      tags: [Auth]
+      summary: Log out and end the session
+      responses:
+        '204':
+          description: Logged out
+        '401':
+          $ref: '#/components/responses/NotAuthenticated'
+
+  /auth/me:
+    get:
+      tags: [Auth]
+      summary: Current user
+      responses:
+        '200':
+          description: The logged in user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '401':
+          $ref: '#/components/responses/NotAuthenticated'
+
+security:
+  - sessionCookie: []
+
+components:
+  securitySchemes:
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: yardflow.sid
+
+  schemas:
+    Role:
+      type: string
+      enum: [ADMIN, PLANNER, GATE_OPERATOR, CUSTOMER]
+
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message, details]
+          properties:
+            code:
+              type: string
+              examples: [SLOT_TAKEN]
+            message:
+              type: string
+              examples: [Slot was just taken, please pick another]
+            details:
+              type: array
+              items:
+                type: object
+                properties:
+                  field:
+                    type: string
+                  message:
+                    type: string
+
+    Health:
+      type: object
+      required: [status, database, uptimeSeconds]
+      properties:
+        status:
+          type: string
+          enum: [ok, error]
+        database:
+          type: string
+          enum: [up, down]
+        uptimeSeconds:
+          type: integer
+
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 1
+          maxLength: 128
+
+    Company:
+      type: object
+      properties:
+        id:
+          type: integer
+        code:
+          type: string
+          examples: [HNF]
+        name:
+          type: string
+
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+        email:
+          type: string
+          format: email
+        name:
+          type: string
+        role:
+          $ref: '#/components/schemas/Role'
+        companyId:
+          type: [integer, 'null']
+        company:
+          oneOf:
+            - $ref: '#/components/schemas/Company'
+            - type: 'null'
+        isActive:
+          type: boolean
+        lastLoginAt:
+          type: [string, 'null']
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+
+    UserResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          $ref: '#/components/schemas/User'
+
+  responses:
+    MalformedRequest:
+      description: The body is not valid JSON
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    NotAuthenticated:
+      description: Not logged in, or the session has ended
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Forbidden:
+      description: The user's role may not use this endpoint
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    ValidationFailed:
+      description: The request failed validation
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: VALIDATION_FAILED
+              message: Validation failed
+              details:
+                - field: body.email
+                  message: Enter a valid email address
+    RateLimited:
+      description: Too many requests
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
