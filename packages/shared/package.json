@@ -1,0 +1,19 @@
+{
+  "name": "@yardflow/shared",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.js",
+    "./iso6346": "./src/iso6346.js"
+  },
+  "scripts": {
+    "test": "cross-env NODE_OPTIONS=--experimental-vm-modules jest",
+    "test:coverage": "cross-env NODE_OPTIONS=--experimental-vm-modules jest --coverage"
+  },
+  "devDependencies": {
+    "@jest/globals": "^30.5.2",
+    "cross-env": "^10.1.0",
+    "jest": "^30.5.2"
+  }
+}
