@@ -8,6 +8,7 @@ export default {
     '<rootDir>/src/**/*.js',
     '<rootDir>/prisma/**/*.js',
     '!<rootDir>/prisma/seed.js',
+    '!<rootDir>/prisma/seed-on-start.js',
     '!<rootDir>/src/server.js',
   ],
   coverageReporters: ['text', 'lcov'],

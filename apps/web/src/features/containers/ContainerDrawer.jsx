@@ -29,7 +29,7 @@ function Section({ title, children }) {
   );
 }
 
-function ContainerDetails({ container }) {
+export function ContainerDetails({ container }) {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap gap-1.5">

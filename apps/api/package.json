@@ -14,7 +14,8 @@
     "db:reset": "dotenv -e ../../.env -- prisma migrate reset --force",
     "db:studio": "dotenv -e ../../.env -- prisma studio",
     "test": "cross-env NODE_OPTIONS=--experimental-vm-modules jest --runInBand",
-    "test:coverage": "cross-env NODE_OPTIONS=--experimental-vm-modules jest --runInBand --coverage"
+    "test:coverage": "cross-env NODE_OPTIONS=--experimental-vm-modules jest --runInBand --coverage",
+    "docs:erd": "node scripts/erd.js"
   },
   "prisma": {
     "seed": "node prisma/seed.js"

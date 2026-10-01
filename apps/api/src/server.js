@@ -1,5 +1,6 @@
 import { createApp, DOCS_PATH } from './app.js';
 import { loadConfig } from './config/env.js';
+import { clockFromStart } from './lib/clock.js';
 import { createLogger } from './lib/logger.js';
 import { createPrismaClient } from './lib/prisma.js';
 import { createSessionStore } from './middleware/session.js';
@@ -10,7 +11,11 @@ const config = loadConfig();
 const logger = createLogger(config);
 const prisma = createPrismaClient(config);
 const sessionStore = createSessionStore(config);
-const app = createApp({ config, prisma, sessionStore, logger });
+const clock = clockFromStart(config.clockStart);
+const app = createApp({ config, prisma, sessionStore, logger, clock });
+if (config.clockStart) {
+  logger.warn(`Demo clock started at ${config.clockStart}`);
+}
 
 async function expireOverduePreAdvices() {
   try {

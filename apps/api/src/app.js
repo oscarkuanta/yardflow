@@ -1,6 +1,7 @@
 import cors from 'cors';
 import express from 'express';
 import helmet from 'helmet';
+import { systemClock } from './lib/clock.js';
 import { createEventBus } from './lib/event-bus.js';
 import { createRequestLogger } from './lib/request-logger.js';
 import { errorHandler, routeNotFound } from './middleware/error-handler.js';
@@ -15,10 +16,6 @@ export const API_BASE_PATH = '/api/v1';
 export const DOCS_PATH = '/api/docs';
 const JSON_BODY_LIMIT = '100kb';
 
-function systemClock() {
-  return new Date();
-}
-
 export function createApp({
   config,
   prisma,
@@ -31,7 +28,7 @@ export function createApp({
   const app = express();
   const sessionMiddleware = createSessionMiddleware({
     sessionSecret: config.sessionSecret,
-    isProduction: config.isProduction,
+    httpsOnly: config.httpsOnly,
     store: sessionStore,
   });
   const auditService = createAuditService({ prisma });
@@ -52,7 +49,7 @@ export function createApp({
   app.use(
     helmet({
       contentSecurityPolicy: {
-        directives: { upgradeInsecureRequests: config.isProduction ? [] : null },
+        directives: { upgradeInsecureRequests: config.httpsOnly ? [] : null },
       },
     }),
   );

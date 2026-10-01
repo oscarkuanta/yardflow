@@ -139,6 +139,7 @@ describe('pre-advices (spec 6.7)', () => {
         bay: 2,
         tier: 1,
         companyId: company.id,
+        gateInAt: EIGHT_DAYS_AGO,
       });
       await customer.post(PRE_ADVICES_PATH).send(pickupFor(ownContainer.number));
       const response = await customer.post(PRE_ADVICES_PATH).send(pickupFor(second.number));

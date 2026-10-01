@@ -156,3 +156,23 @@ describe('login rate limit', () => {
     expect(blocked.headers.ratelimit).toBeDefined();
   });
 });
+
+describe('login rate limit for successful logins', () => {
+  const context = createTestContext({ loginAttemptsPerWindow: LOGIN_ATTEMPTS_PER_WINDOW });
+
+  beforeAll(async () => {
+    await resetDatabase(context.prisma);
+    await createUsersForAllRoles(context.prisma);
+  });
+
+  afterAll(context.close);
+
+  test('does not count successful logins, so demo visitors can switch roles', async () => {
+    for (let attempt = 1; attempt <= LOGIN_ATTEMPTS_PER_WINDOW + 2; attempt += 1) {
+      const response = await request(context.app)
+        .post('/api/v1/auth/login')
+        .send({ email: USER_EMAILS.ADMIN, password: TEST_PASSWORD });
+      expect(response.status).toBe(200);
+    }
+  });
+});

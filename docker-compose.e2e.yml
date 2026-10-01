@@ -1,0 +1,15 @@
+services:
+  db:
+    ports: !reset []
+    volumes: !override
+      - ./docker/mysql/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+
+  api:
+    environment:
+      WEB_ORIGIN: http://localhost:8081
+      SEED_ON_START: always
+      DEMO_CLOCK_START: '2026-10-07T08:10:00Z'
+
+  web:
+    ports: !override
+      - '8081:80'

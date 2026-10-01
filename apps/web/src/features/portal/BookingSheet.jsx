@@ -123,23 +123,30 @@ function SlotGrid({ date, value, onChange, error }) {
   );
 }
 
+export const PICKUP_SUGGESTIONS_ID = 'pickup-container-suggestions';
+
 function PickupContainerField({ value, onChange, error }) {
   const { data } = useMyContainers({ state: 'IN_YARD' });
   const containers = data?.data ?? [];
   return (
-    <SelectField
-      label="Container to pick up"
-      value={value}
-      onChange={(event) => onChange(event.target.value)}
-      error={error}
-      options={[
-        { value: '', label: 'Choose a container' },
-        ...containers.map((container) => ({
-          value: container.number,
-          label: `${container.displayNumber}${container.hasHold ? ' · on hold' : ''}`,
-        })),
-      ]}
-    />
+    <>
+      <ContainerNumberField
+        label="Container to pick up"
+        value={value}
+        onChange={onChange}
+        error={error}
+        list={PICKUP_SUGGESTIONS_ID}
+      />
+      <datalist id={PICKUP_SUGGESTIONS_ID}>
+        {containers
+          .filter((container) => !container.hasHold)
+          .map((container) => (
+            <option key={container.number} value={container.number}>
+              {container.displayNumber}
+            </option>
+          ))}
+      </datalist>
+    </>
   );
 }
 

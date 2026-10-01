@@ -36,6 +36,10 @@ const PortalBoxesPage = lazyPage(
   () => import('../features/portal/PortalBoxesPage.jsx'),
   'PortalBoxesPage',
 );
+const PortalContainerPage = lazyPage(
+  () => import('../features/portal/PortalContainerPage.jsx'),
+  'PortalContainerPage',
+);
 const PortalSlotsPage = lazyPage(
   () => import('../features/portal/PortalSlotsPage.jsx'),
   'PortalSlotsPage',
@@ -101,6 +105,7 @@ export const routes = [
     ),
     children: [
       { index: true, element: <PortalBoxesPage /> },
+      { path: 'containers/:number', element: <PortalContainerPage /> },
       { path: 'slots', element: <PortalSlotsPage /> },
       { path: 'alerts', element: <PortalAlertsPage /> },
       { path: 'invoices', element: <PortalInvoicesPage /> },

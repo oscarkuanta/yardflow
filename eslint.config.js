@@ -26,7 +26,13 @@ const noCommentsRule = {
 
 export default [
   {
-    ignores: ['**/node_modules/**', '**/coverage/**', '**/dist/**', '**/playwright-report/**'],
+    ignores: [
+      '**/node_modules/**',
+      '**/coverage/**',
+      '**/dist/**',
+      '**/playwright-report/**',
+      '**/test-results/**',
+    ],
   },
   js.configs.recommended,
   {
@@ -58,6 +64,10 @@ export default [
       'react-hooks/rules-of-hooks': 'error',
       'react-hooks/exhaustive-deps': 'error',
     },
+  },
+  {
+    files: ['apps/web/e2e/**/*.js', 'apps/web/playwright.config.js'],
+    languageOptions: { globals: { ...globals.node, ...globals.browser } },
   },
   {
     files: ['apps/web/public/**/*.js'],

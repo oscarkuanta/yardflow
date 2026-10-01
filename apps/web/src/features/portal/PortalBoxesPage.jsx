@@ -1,5 +1,6 @@
 import { Boxes, CalendarPlus, ShieldAlert } from 'lucide-react';
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { Button } from '../../components/Button.jsx';
 import { EmptyState } from '../../components/EmptyState.jsx';
 import { SegmentedControl } from '../../components/Layout.jsx';
@@ -7,7 +8,6 @@ import { Skeleton } from '../../components/Skeleton.jsx';
 import { StatusChip } from '../../components/StatusChip.jsx';
 import { TextField } from '../../components/TextField.jsx';
 import { describeCargo, formatNumber } from '../../lib/format.js';
-import { ContainerDrawer } from '../containers/ContainerDrawer.jsx';
 import { BookingSheet } from './BookingSheet.jsx';
 import {
   COUNT_FILTERS,
@@ -81,13 +81,12 @@ function HoldAlert({ count }) {
   );
 }
 
-function ContainerCard({ container, invoice, preAdvice, onOpen }) {
+function ContainerCard({ container, invoice, preAdvice }) {
   const status = containerStatus(container);
   return (
     <li>
-      <button
-        type="button"
-        onClick={() => onOpen(container.number)}
+      <Link
+        to={`/portal/containers/${container.number}`}
         className="panel flex w-full flex-col gap-2 p-4 text-left transition-colors hover:border-muted"
       >
         <span className="flex items-center justify-between gap-2">
@@ -98,7 +97,7 @@ function ContainerCard({ container, invoice, preAdvice, onOpen }) {
         {container.positionCode && (
           <span className="numeric text-xs text-muted">Position {container.positionCode}</span>
         )}
-      </button>
+      </Link>
     </li>
   );
 }
@@ -106,7 +105,6 @@ function ContainerCard({ container, invoice, preAdvice, onOpen }) {
 export function PortalBoxesPage() {
   const [state, setState] = useState('IN_YARD');
   const [search, setSearch] = useState('');
-  const [openNumber, setOpenNumber] = useState(null);
   const [booking, setBooking] = useState(null);
   const counts = useContainerCounts();
   const searchValue = search.replace(/\s+/g, '').toUpperCase();
@@ -155,7 +153,6 @@ export function PortalBoxesPage() {
             container={container}
             invoice={invoices.get(container.number)}
             preAdvice={preAdvices.get(container.number)}
-            onOpen={setOpenNumber}
           />
         ))}
       </ul>
@@ -175,24 +172,6 @@ export function PortalBoxesPage() {
           Book a pickup slot
         </Button>
       </div>
-      {openNumber && (
-        <ContainerDrawer number={openNumber} onClose={() => setOpenNumber(null)}>
-          {(container) =>
-            container.state === 'IN_YARD' &&
-            !preAdvices.has(container.number) && (
-              <Button
-                className="w-full"
-                onClick={() => {
-                  setOpenNumber(null);
-                  setBooking({ type: 'PICKUP', container: container.number });
-                }}
-              >
-                Book a pickup for this container
-              </Button>
-            )
-          }
-        </ContainerDrawer>
-      )}
       {booking && (
         <BookingSheet
           initialType={booking.type}

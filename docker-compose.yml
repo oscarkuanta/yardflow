@@ -20,5 +20,33 @@ services:
       retries: 20
       start_period: 20s
 
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: mysql://yardflow:yardflow@db:3306/yardflow
+      SESSION_SECRET: ${SESSION_SECRET:-local-docker-demo-secret-change-me}
+      WEB_ORIGIN: http://localhost:8080
+      NODE_ENV: production
+      HTTPS_ONLY: 'false'
+      SEED_ON_START: if-empty
+      TZ: Europe/Berlin
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - '${WEB_PORT:-8080}:80'
+
 volumes:
   yardflow-db:

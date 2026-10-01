@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { fakeSocket } from './fake-socket.js';
 import { apiError, jsonResponse, ok, page, renderApp, stubApi } from './render-app.jsx';
 
+const LAZY_PAGE_TIMEOUT_MS = 5000;
 const ADMIN = {
   id: 1,
   name: 'Anna Keller',
@@ -689,7 +690,11 @@ describe('reports', () => {
       'GET /reports/dwell': () => ok([]),
     });
     renderApp('/app/reports');
-    const figures = await screen.findByRole('list', { name: 'Key figures' });
+    const figures = await screen.findByRole(
+      'list',
+      { name: 'Key figures' },
+      { timeout: LAZY_PAGE_TIMEOUT_MS },
+    );
     expect(within(figures).getByText('50.0 %')).toBeInTheDocument();
     expect(within(figures).getByText('1 in · 1 out')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /Movements CSV/ })).toHaveAttribute(

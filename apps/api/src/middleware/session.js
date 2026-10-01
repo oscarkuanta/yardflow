@@ -28,7 +28,7 @@ export function createSessionStore({ databaseUrl }) {
   });
 }
 
-export function createSessionMiddleware({ sessionSecret, isProduction, store }) {
+export function createSessionMiddleware({ sessionSecret, httpsOnly, store }) {
   return session({
     name: SESSION_COOKIE_NAME,
     secret: sessionSecret,
@@ -39,7 +39,7 @@ export function createSessionMiddleware({ sessionSecret, isProduction, store }) 
     cookie: {
       httpOnly: true,
       sameSite: 'lax',
-      secure: isProduction,
+      secure: httpsOnly,
       maxAge: SESSION_MAX_AGE_MS,
     },
   });

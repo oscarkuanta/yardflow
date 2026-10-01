@@ -202,3 +202,22 @@ Record every decision that is not fixed by docs/SPEC.md: date, decision, reason.
 - **New alerts arrive live**: `notification:new` refreshes the alert list and shows a toast; the bell in the header shows a dot while there are unread alerts. `container:changed` refreshes containers and bookings.
 - **The light theme no longer puts a strong light veil over the portal header photo**, for the same reason as the landing fix.
 - **Checked at 390 px wide** in Chrome by loading the portal in a 390 px frame: counts, hold alert, container cards, booking sheet, PIN reveal, cancel, sticky booking button above the bottom navigation.
+
+## 2026-10-01, Phase 12
+
+- **`docker compose up --build` starts `db`, `api` and `web`.** The API image runs `prisma migrate deploy`, then seeds the database only when it has no users (`SEED_ON_START=if-empty`), then starts the server. `npm run db:up` still starts only the database for local development.
+- **The web image is nginx with the Vite build.** It proxies `/api` and `/socket.io` (with WebSocket upgrade) to the API. The upstream comes from `API_UPSTREAM` through nginx's template mechanism, so the same image works in Compose (`http://api:4000`) and on Railway (private network host).
+- **nginx passes on an incoming `X-Forwarded-Proto`.** On Railway the HTTPS edge sits in front of nginx; without this the API would see `http`, refuse to set the secure cookie, and login would fail.
+- **`HTTPS_ONLY` controls the secure cookie and the HTTPS upgrade header.** It defaults to on in production, as the spec asks, and the local Docker demo turns it off because it runs on plain `http://localhost:8080`.
+- **The web image runs a full `npm ci --ignore-scripts`.** A workspace-filtered install skipped Rolldown's native Linux binding after the lockfile was updated on Windows, and the Vite build failed.
+- **E2E tests run against a separate Compose project** (`yardflow-e2e`, web on port 8081, database without a host port or named volume), so they never touch the development data.
+- **The E2E stack uses a shifted clock** (`DEMO_CLOCK_START=2026-10-07T08:10:00Z`, a Wednesday at 10:10 in Berlin). The API and the seed start their clocks there and let it run. The gate flows need a booking whose slot is open right now, and gate hours are 08:00 to 17:00 on working days, so tests against the real clock would fail at night and on Sundays. The browser in the tests gets the same time with Playwright's `page.clock.setFixedTime`. The variable is never set outside the E2E stack.
+- **Before each E2E run the global setup restarts the E2E API**, which seeds again (`SEED_ON_START=always`) and resets the shifted clock. In CI the stack is new, so the restart is skipped with `E2E_RESTART_API=false`.
+- **Scenarios 4 and 5 run in order on the seeded demo pickup**, whose container has two boxes on top: the hold denies the gate-out, the release lets the checks pass and creates the two work orders, the planner completes them, the gate-out completes.
+- **Customers can open one container by URL** (`/portal/containers/:number`). This is needed for E2E scenario 6, and the not-found page is what a customer sees for another company's container.
+- **The pickup booking takes a typed container number with suggestions** instead of a dropdown. The dropdown only held the newest 100 containers, so older ones could not be booked; the E2E test found this.
+- **Only failed logins count towards the login limit** (10 per 15 minutes per IP, `skipSuccessfulRequests`). Counting successful logins locked out demo visitors and the E2E suite after switching roles a few times, while brute force protection is unchanged.
+- **The README screenshots are made by a Playwright project** (`npm run screenshots`) in the dark theme, so they can be made again after UI changes.
+- **The ERD in the README is generated** from `schema.prisma` by `apps/api/scripts/erd.js` (`npm run docs:erd`) between two markers, instead of adding a Prisma generator package.
+- **A pre-advice test used the real date for a gate-in time** while its clock was fixed to 30 September 2026, so it started failing on 1 October. The test now sets the gate-in time explicitly.
+- **The README CI badge uses `YOUR-GITHUB-USER`** because the repository has no remote yet, and the live demo link is added after the first deploy.

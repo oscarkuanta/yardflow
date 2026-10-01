@@ -273,9 +273,8 @@ describe('customer portal', () => {
     renderApp('/portal');
     await userEvent.click(await screen.findByRole('button', { name: 'Book a pickup slot' }));
     const sheet = screen.getByRole('dialog', { name: 'Book a pickup slot' });
-    const containerSelect = within(sheet).getByLabelText('Container to pick up');
-    await within(sheet).findByRole('option', { name: 'HNFU 204571 1' });
-    await userEvent.selectOptions(containerSelect, 'HNFU2045711');
+    await userEvent.type(within(sheet).getByLabelText('Container to pick up'), 'HNFU2045711');
+    expect(within(sheet).getByText('ISO 6346 check digit valid')).toBeInTheDocument();
     const slots = await within(sheet).findAllByRole('radio', { name: /left|Too late|Full/ });
     expect(slots[0]).toBeDisabled();
     expect(slots[2]).toBeDisabled();
@@ -301,7 +300,7 @@ describe('customer portal', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
-  it('starts a pickup booking from a container', async () => {
+  it('opens a container page and starts a pickup booking from it', async () => {
     portalApi({
       'GET /containers/HNFU2045711': () =>
         ok({
@@ -313,14 +312,24 @@ describe('customer portal', () => {
           history: [],
         }),
     });
-    renderApp('/portal');
+    const { router } = renderApp('/portal');
     await userEvent.click(await screen.findByText('HNFU 204571 1'));
+    await waitFor(() =>
+      expect(router.state.location.pathname).toBe('/portal/containers/HNFU2045711'),
+    );
     await userEvent.click(
       await screen.findByRole('button', { name: 'Book a pickup for this container' }),
     );
     const sheet = screen.getByRole('dialog', { name: 'Book a pickup slot' });
-    await within(sheet).findByRole('option', { name: 'HNFU 204571 1' });
     expect(within(sheet).getByLabelText('Container to pick up')).toHaveValue('HNFU2045711');
+  });
+
+  it("says not found for another company's container", async () => {
+    portalApi({
+      'GET /containers/NRTU2836393': () => apiError(404, 'NOT_FOUND', 'Container not found'),
+    });
+    renderApp('/portal/containers/NRTU2836393');
+    expect(await screen.findByRole('heading', { name: 'Container not found' })).toBeInTheDocument();
   });
 
   it('shows delivery validation errors next to the fields', async () => {

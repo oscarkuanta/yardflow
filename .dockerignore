@@ -1,0 +1,13 @@
+**/node_modules
+**/coverage
+**/dist
+**/playwright-report
+**/test-results
+.git
+.github
+.env
+.env.*
+!.env.example
+LEARNING.md
+docs
+**/*.log

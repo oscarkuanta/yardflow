@@ -15,6 +15,8 @@
   "scripts": {
     "db:up": "docker compose up -d db",
     "db:down": "docker compose down",
+    "e2e:up": "docker compose -p yardflow-e2e -f docker-compose.yml -f docker-compose.e2e.yml up -d --build --wait",
+    "e2e:down": "docker compose -p yardflow-e2e -f docker-compose.yml -f docker-compose.e2e.yml down -v",
     "db:migrate": "npm run db:migrate --workspaces --if-present",
     "db:seed": "npm run db:seed --workspaces --if-present",
     "db:reset": "npm run db:reset --workspaces --if-present",
@@ -25,7 +27,9 @@
     "test": "npm run test --workspaces --if-present",
     "test:coverage": "npm run test:coverage --workspaces --if-present",
     "test:e2e": "npm run test:e2e --workspaces --if-present",
-    "build": "npm run build -w @yardflow/web"
+    "build": "npm run build -w @yardflow/web",
+    "screenshots": "npm run screenshots -w @yardflow/web",
+    "docs:erd": "npm run docs:erd -w @yardflow/api"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

@@ -17,6 +17,10 @@ const environmentSchema = z.object({
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).optional(),
   GATE_SLOT_TOLERANCE_MIN: z.coerce.number().int().min(0).default(GATE_SLOT_TOLERANCE_MIN),
   DEFAULT_SLOT_CAPACITY: z.coerce.number().int().positive().default(DEFAULT_SLOT_CAPACITY),
+  HTTPS_ONLY: z.enum(['true', 'false'], 'HTTPS_ONLY must be true or false').optional(),
+  DEMO_CLOCK_START: z.iso
+    .datetime({ offset: true, message: 'DEMO_CLOCK_START must be an ISO date and time' })
+    .optional(),
 });
 
 function defaultLogLevel(nodeEnv) {
@@ -42,5 +46,7 @@ export function loadConfig(environment = process.env) {
     logLevel: values.LOG_LEVEL ?? defaultLogLevel(values.NODE_ENV),
     gateSlotToleranceMin: values.GATE_SLOT_TOLERANCE_MIN,
     defaultSlotCapacity: values.DEFAULT_SLOT_CAPACITY,
+    httpsOnly: values.HTTPS_ONLY ? values.HTTPS_ONLY === 'true' : values.NODE_ENV === 'production',
+    clockStart: values.DEMO_CLOCK_START ?? null,
   };
 }

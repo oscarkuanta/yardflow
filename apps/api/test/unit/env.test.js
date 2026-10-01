@@ -18,7 +18,30 @@ describe('loadConfig', () => {
       logLevel: 'info',
       gateSlotToleranceMin: 30,
       defaultSlotCapacity: 10,
+      httpsOnly: false,
+      clockStart: null,
     });
+  });
+
+  test('requires HTTPS in production unless it is turned off for a local demo', () => {
+    expect(loadConfig({ ...MINIMAL_ENVIRONMENT, NODE_ENV: 'production' }).httpsOnly).toBe(true);
+    expect(
+      loadConfig({ ...MINIMAL_ENVIRONMENT, NODE_ENV: 'production', HTTPS_ONLY: 'false' }).httpsOnly,
+    ).toBe(false);
+    expect(loadConfig({ ...MINIMAL_ENVIRONMENT, HTTPS_ONLY: 'true' }).httpsOnly).toBe(true);
+    expect(() => loadConfig({ ...MINIMAL_ENVIRONMENT, HTTPS_ONLY: 'yes' })).toThrow(
+      'HTTPS_ONLY must be true or false',
+    );
+  });
+
+  test('accepts a demo clock start only as an ISO date and time', () => {
+    const clockStart = '2026-10-07T08:10:00Z';
+    expect(loadConfig({ ...MINIMAL_ENVIRONMENT, DEMO_CLOCK_START: clockStart }).clockStart).toBe(
+      clockStart,
+    );
+    expect(() => loadConfig({ ...MINIMAL_ENVIRONMENT, DEMO_CLOCK_START: 'Wednesday' })).toThrow(
+      'DEMO_CLOCK_START must be an ISO date and time',
+    );
   });
 
   test('turns numeric strings into numbers', () => {
