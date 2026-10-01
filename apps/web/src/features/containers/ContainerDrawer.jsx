@@ -97,13 +97,18 @@ function ContainerDetails({ container }) {
   );
 }
 
-export function ContainerDrawer({ number, onClose }) {
+export function ContainerDrawer({ number, onClose, children }) {
   const { data: container, isPending, error } = useContainer(number);
   return (
     <Drawer title={container?.displayNumber ?? number} subtitle="Container" onClose={onClose}>
       {isPending && <Skeleton className="h-64" />}
       <ErrorNote error={error} />
-      {container && <ContainerDetails container={container} />}
+      {container && (
+        <div className="flex flex-col gap-4">
+          {children?.(container)}
+          <ContainerDetails container={container} />
+        </div>
+      )}
     </Drawer>
   );
 }

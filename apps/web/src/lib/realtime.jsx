@@ -2,14 +2,16 @@ import { useQueryClient } from '@tanstack/react-query';
 import { createContext, useContext, useEffect, useMemo, useRef } from 'react';
 import { io } from 'socket.io-client';
 
-export const STAFF_EVENTS = ['yard:changed', 'gate:event', 'workorder:changed', 'vessel:changed'];
-
 export const INVALIDATIONS = {
   'yard:changed': [['yard'], ['reports'], ['containers']],
   'gate:event': [['gate'], ['reports']],
   'workorder:changed': [['work-orders'], ['reports']],
   'vessel:changed': [['vessels']],
+  'notification:new': [['notifications'], ['invoices']],
+  'container:changed': [['containers'], ['pre-advices']],
 };
+
+export const REALTIME_EVENTS = Object.keys(INVALIDATIONS);
 
 export function queryKeysFor(eventName) {
   return INVALIDATIONS[eventName] ?? [];
@@ -27,7 +29,7 @@ export function RealtimeProvider({ connect = connectSocket, children }) {
 
   useEffect(() => {
     const socket = connect();
-    const handlers = STAFF_EVENTS.map((eventName) => {
+    const handlers = REALTIME_EVENTS.map((eventName) => {
       const handler = (payload) => {
         for (const queryKey of queryKeysFor(eventName)) {
           queryClient.invalidateQueries({ queryKey });

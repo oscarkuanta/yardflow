@@ -188,3 +188,17 @@ Record every decision that is not fixed by docs/SPEC.md: date, decision, reason.
 ## 2026-10-01, Landing fix before Phase 11
 
 - **The landing hero and its top bar always use the dark Night Ops tokens** (`data-theme="dark"` on the hero section and the top bar), also when the page follows a light system theme. Reason: in the light theme a 72% light veil over the night harbour photo made the hero look washed out and much brighter than the approved mockup. DESIGN section 6.1 asks for the photo darkened with a gradient from 55% dark to solid background. The sections below the hero still follow the chosen theme.
+
+## 2026-10-01, Phase 11
+
+- **The portal reuses the staff building blocks** (dialogs, toasts, the live event provider, the container detail drawer). On a phone the dialog opens as a bottom sheet, which is the booking sheet from DESIGN section 6.6.
+- **One booking sheet for pickups and deliveries**, switched with a Pickup/Delivery tab. A pickup only offers the company's containers in the yard. A delivery asks for the container number (checked live with ISO 6346) and its cargo data, as the API requires.
+- **The slot picker shows 7 days and greys out slots that cannot be booked**: closed (capacity 0), full, or starting in less than 60 minutes, which is the API's booking lead time. The API still decides; its message is shown if a slot was taken in the meantime.
+- **The invoice summary is shown after booking, on the PIN screen**, because the storage invoice only exists once the API creates the pickup. Before confirming, the sheet explains that the invoice is issued and must be paid before the truck can leave. Customers cannot read tariffs, so the web does not guess the amount.
+- **The PIN is shown once, with a copy button and a warning.** It is never stored in the browser. "New PIN" on an active booking asks first, because the old PIN stops working.
+- **Container counts come from three small list requests** (`pageSize=1`, reading `total`), so no new endpoint was needed.
+- **The container list loads the newest 100 per state** and says so when there are more; searching by number finds the rest.
+- **Invoices are paid outside the system.** The portal shows the open amount and says to pay by bank transfer, because payment gateways are out of scope (CLAUDE.md rule 8).
+- **New alerts arrive live**: `notification:new` refreshes the alert list and shows a toast; the bell in the header shows a dot while there are unread alerts. `container:changed` refreshes containers and bookings.
+- **The light theme no longer puts a strong light veil over the portal header photo**, for the same reason as the landing fix.
+- **Checked at 390 px wide** in Chrome by loading the portal in a 390 px frame: counts, hold alert, container cards, booking sheet, PIN reveal, cancel, sticky booking button above the bottom navigation.

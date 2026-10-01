@@ -43,6 +43,6 @@
   --soft-warn: rgba(165, 91, 0, 0.1);
   --soft-danger: rgba(198, 47, 47, 0.1);
   --shadow-float: 0 8px 24px rgba(11, 15, 20, 0.06);
-  --hero-veil: rgba(243, 245, 247, 0.72);
-  --hero-veil-middle: rgba(243, 245, 247, 0.6);
+  --hero-veil: rgba(243, 245, 247, 0.1);
+  --hero-veil-middle: rgba(243, 245, 247, 0.1);
 }

@@ -52,6 +52,14 @@
     animation: fade-in 150ms ease-out;
   }
 
+  .no-scrollbar {
+    scrollbar-width: none;
+  }
+
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
   .animate-stack-pulse {
     animation: stack-pulse 600ms ease-out;
   }

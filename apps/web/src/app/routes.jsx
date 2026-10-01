@@ -5,12 +5,6 @@ import { LandingPage } from '../features/landing/LandingPage.jsx';
 import { LoginPage } from '../features/login/LoginPage.jsx';
 import { NotFoundPage } from '../routes/NotFoundPage.jsx';
 import { PortalShell } from '../routes/portal/PortalShell.jsx';
-import {
-  PortalAlertsPage,
-  PortalBoxesPage,
-  PortalInvoicesPage,
-  PortalSlotsPage,
-} from '../routes/portal/portal-pages.jsx';
 import { StaffShell } from '../routes/staff/StaffShell.jsx';
 
 import { STAFF_NAVIGATION } from '../routes/staff/staff-navigation.js';
@@ -37,6 +31,23 @@ const CustomsPage = lazyPage(() => import('../features/customs/CustomsPage.jsx')
 const BillingPage = lazyPage(() => import('../features/billing/BillingPage.jsx'), 'BillingPage');
 const ReportsPage = lazyPage(() => import('../features/reports/ReportsPage.jsx'), 'ReportsPage');
 const AdminPage = lazyPage(() => import('../features/admin/AdminPage.jsx'), 'AdminPage');
+
+const PortalBoxesPage = lazyPage(
+  () => import('../features/portal/PortalBoxesPage.jsx'),
+  'PortalBoxesPage',
+);
+const PortalSlotsPage = lazyPage(
+  () => import('../features/portal/PortalSlotsPage.jsx'),
+  'PortalSlotsPage',
+);
+const PortalAlertsPage = lazyPage(
+  () => import('../features/portal/PortalAlertsPage.jsx'),
+  'PortalAlertsPage',
+);
+const PortalInvoicesPage = lazyPage(
+  () => import('../features/portal/PortalInvoicesPage.jsx'),
+  'PortalInvoicesPage',
+);
 
 const STAFF_PAGES = {
   '/app': YardOverviewPage,
