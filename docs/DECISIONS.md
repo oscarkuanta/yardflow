@@ -143,3 +143,23 @@ Record every decision that is not fixed by docs/SPEC.md: date, decision, reason.
 - **`src/routes.js` declares all modules in one mount table (`API_MOUNTS`).** Reason: Express 5 does not remember the path a router was mounted on. With the table, the route coverage test can list every route as mount path plus route path. It checks both directions: every Express route is documented, and every documented route exists.
 - **The audit log router is mounted at the root, because its paths are `/audit-logs` and `/audit-logs.csv`.** Its authentication runs per route, not for the whole router, so other requests are not affected.
 - **Known gap in the demo data:** the seed creates 14 days of history (section 12), so the 8-week dwell chart only has values in its last 3 weeks. Extending the history would be a seed change, not a report change. It can be done when the charts are built in Phase 10, if the empty weeks look bad.
+
+## 2026-10-01, Phase 9
+
+- **The landing page reads one public endpoint, `GET /api/v1/public/stats`, without login.** It returns occupancy, gate moves today, average dwell, average gate-in time and the last three gate events. Truck plates and container numbers are masked (`HH-•• ••2`, `HNFU •••571 1`), because the page is public. The answer is cached for 15 seconds so a busy landing page cannot load the database.
+- **"Gate-in time per truck" is measured from the successful PIN check to the gate-in.** The gate service now writes a `GATE_TRUCK_VERIFIED` audit row when a plate and PIN match. The average covers gate-ins of the last 7 days that have such a row. Reason: the spec shows the number on the landing page, and the audit log was the only place where the start time could live without a schema change.
+- **The seed writes a matching verify audit row 2 to 7 minutes before each historical gate transaction**, so the demo shows a real gate-in time. A database seeded before Phase 9 shows "—" until `npm run db:seed` runs again.
+- **React is pinned to 18.3.1 with root `overrides`.** Newer versions of React Query, React Router and lucide pulled React 19 in as a peer, which gave two React copies and a blank page ("Invalid hook call"). The lockfile was regenerated once from a clean install.
+- **No `eslint-plugin-react`.** It does not support ESLint 10, and ESLint 10 already marks variables used in JSX as used. `eslint-plugin-react-hooks` checks the rules of hooks.
+- **Tailwind 3 with colors as CSS variables** (`bg-surface` uses `var(--surface)`). Both themes from `docs/DESIGN.md` live in `tokens.css`; switching theme only changes `data-theme` on `<html>`.
+- **The theme follows the system until the user picks one**, which is then stored in `localStorage` (`yardflow.theme`). A tiny `public/theme-boot.js` sets the theme before the first paint, so there is no flash of the wrong theme.
+- **The hero photo gets a light veil in the light theme** (`--hero-veil`), so dark text stays readable on the night harbour photo.
+- **The hero headline is capped at 76 px.** At the design's larger size "Every box in the yard." wraps inside the left column at common laptop widths. The hero uses `min-height` instead of a fixed height so the stat cards are never cut off.
+- **The photos are resized once to 800 px and 1600 px JPEG files and committed** in `apps/web/public/images`. The image tool is not a project dependency. Photos narrower than 1600 px keep their own width, and `src/lib/images.js` lists the real widths for `srcset`.
+- **In development, Vite proxies `/api` and `/socket.io` to the API on port 4000.** The browser sees one origin, so the session cookie works without CORS settings.
+- **`npm run dev` starts the API and the web app together with `concurrently`.**
+- **The GitHub link in the top bar is only shown when `VITE_GITHUB_URL` is set**, so the page never links to a repository that does not exist.
+- **The staff search pill is shown but not wired yet.** Search belongs to the yard screens in Phase 10.
+- **Staff and portal screens are placeholders that say what will appear there.** The routes, role checks and shells are real, so later phases only fill in the pages.
+- **Route protection lives in one `RequireAuth` component.** Guests go to `/login` (and come back afterwards), a user with the wrong role goes to their own home: `/portal` for customers, `/app` for staff. The API still checks every role; the web check only avoids showing screens that would fail.
+- **The API client never retries 4xx answers** and retries other failures at most twice.

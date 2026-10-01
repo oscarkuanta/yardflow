@@ -57,6 +57,60 @@ tags:
     description: Every change and business action (Admin)
 
 paths:
+  /public/stats:
+    get:
+      tags: [System]
+      summary: Public live numbers for the landing page
+      description: |
+        No login needed. Truck plates and container numbers are masked. Cached for 15 seconds.
+        Gate-in time is the average minutes from the PIN check to the completed gate-in over the last 7 days.
+      security: []
+      responses:
+        '200':
+          description: The numbers
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      containersInYard:
+                        type: integer
+                      occupancyPercent:
+                        type: number
+                      gateMovesToday:
+                        type: integer
+                      averageDwellDays:
+                        type: [number, 'null']
+                      averageGateInMinutes:
+                        type: [number, 'null']
+                      recentGateEvents:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            kind:
+                              type: string
+                              enum: [IN, OUT]
+                            containerNumber:
+                              type: string
+                              examples: [HNFU •••571 1]
+                            size:
+                              $ref: '#/components/schemas/ContainerSize'
+                            plate:
+                              type: string
+                              examples: [HH-•• ••2]
+                            lane:
+                              type: integer
+                            at:
+                              type: string
+                              format: date-time
+                      generatedAt:
+                        type: string
+                        format: date-time
+
   /reports/kpis:
     get:
       tags: [Reports]

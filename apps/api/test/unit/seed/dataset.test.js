@@ -357,6 +357,19 @@ describe.each(SCENARIOS)('seed dataset built on %s', (_label, isoNow) => {
       }
     });
 
+    test('records the truck check a few minutes before every gate transaction', () => {
+      const verifiedAt = new Map(
+        tables.auditLogs
+          .filter((entry) => entry.action === 'GATE_TRUCK_VERIFIED')
+          .map((entry) => [Number(entry.entityId), entry.createdAt]),
+      );
+      for (const transaction of tables.gateTransactions) {
+        const minutes = (transaction.createdAt - verifiedAt.get(transaction.preAdviceId)) / 60000;
+        expect(minutes).toBeGreaterThanOrEqual(2);
+        expect(minutes).toBeLessThanOrEqual(7);
+      }
+    });
+
     test('records damage only on transactions without the no damage flag', () => {
       const damagedIds = new Set(tables.damageReports.map((report) => report.gateTransactionId));
       for (const transaction of tables.gateTransactions) {
@@ -500,6 +513,7 @@ describe.each(SCENARIOS)('seed dataset built on %s', (_label, isoNow) => {
       ...tables.customsHolds.flatMap((row) => [row.placedAt, row.releasedAt]),
       ...tables.storageInvoices.flatMap((row) => [row.createdAt, row.paidAt]),
       ...tables.notifications.flatMap((row) => [row.createdAt, row.readAt]),
+      ...tables.auditLogs.map((row) => row.createdAt),
     ].filter(Boolean);
     for (const moment of historyFields) {
       expect(moment <= now).toBe(true);

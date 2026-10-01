@@ -142,6 +142,14 @@ export function createGateService({
       await recordWrongPin(truckPlate, now, actor);
     }
     pinLockout.clear(truckPlate);
+    await auditService.record({
+      userId: actor.id,
+      action: 'GATE_TRUCK_VERIFIED',
+      entity: 'PreAdvice',
+      entityId: preAdvice.id,
+      after: { truckPlate, direction },
+      ip: actor.ip,
+    });
     rememberVerifiedTruck(session, preAdvice.id, now);
     const container =
       type === 'PICKUP'

@@ -34,6 +34,8 @@ import {
 import { buildYardLayout, listSlots, stackKey } from './yard-layout.js';
 
 const SATURDAY = 6;
+const MIN_GATE_MINUTES = 2;
+const MAX_GATE_MINUTES = 7;
 const SEATS_KEPT_FREE_IN_CURRENT_SLOT = 5;
 const MIN_IMPORT_DWELL_HOURS = 48;
 const MAX_IMPORT_DWELL_HOURS = 20 * 24;
@@ -92,12 +94,24 @@ function addUsedGateVisit(context, { event, type, container, createdAt }) {
     pin: RETIRED_PIN,
     createdAt,
   });
-  return addGateTransaction(context, {
+  const gateTransaction = addGateTransaction(context, {
     direction: event.direction,
     preAdvice,
     container,
     at: event.at,
   });
+  context.insert('auditLogs', {
+    userId: gateTransaction.operatorId,
+    action: 'GATE_TRUCK_VERIFIED',
+    entity: 'PreAdvice',
+    entityId: String(preAdvice.id),
+    after: { truckPlate: preAdvice.truckPlate, direction: event.direction },
+    ip: null,
+    createdAt: new Date(
+      event.at.getTime() - context.random.integer(MIN_GATE_MINUTES, MAX_GATE_MINUTES) * MINUTE_MS,
+    ),
+  });
+  return gateTransaction;
 }
 
 function addExportGateIn(context, event, yardSlot) {

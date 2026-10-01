@@ -19,18 +19,25 @@
     "db:seed": "npm run db:seed --workspaces --if-present",
     "db:reset": "npm run db:reset --workspaces --if-present",
     "db:studio": "npm run db:studio --workspaces --if-present",
-    "dev": "npm run dev --workspaces --if-present",
+    "dev": "concurrently --names api,web --prefix-colors cyan,green --kill-others-on-fail \"npm run dev -w @yardflow/api\" \"npm run dev -w @yardflow/web\"",
     "lint": "eslint . && prettier --check .",
     "format": "prettier --write .",
     "test": "npm run test --workspaces --if-present",
     "test:coverage": "npm run test:coverage --workspaces --if-present",
-    "test:e2e": "npm run test:e2e --workspaces --if-present"
+    "test:e2e": "npm run test:e2e --workspaces --if-present",
+    "build": "npm run build -w @yardflow/web"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "concurrently": "^10.0.5",
     "eslint": "^10.11.0",
     "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-react-hooks": "^7.1.1",
     "globals": "^17.12.0",
     "prettier": "^3.9.9"
+  },
+  "overrides": {
+    "react": "18.3.1",
+    "react-dom": "18.3.1"
   }
 }

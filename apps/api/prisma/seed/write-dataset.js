@@ -21,6 +21,7 @@ export const INSERT_ORDER = [
   ['customsHold', 'customsHolds'],
   ['storageInvoice', 'storageInvoices'],
   ['notification', 'notifications'],
+  ['auditLog', 'auditLogs'],
 ];
 
 const DELETE_ORDER = [

@@ -1,5 +1,6 @@
 import js from '@eslint/js';
 import eslintConfigPrettier from 'eslint-config-prettier/flat';
+import reactHooks from 'eslint-plugin-react-hooks';
 import globals from 'globals';
 
 const noCommentsRule = {
@@ -29,7 +30,7 @@ export default [
   },
   js.configs.recommended,
   {
-    files: ['**/*.js'],
+    files: ['**/*.{js,jsx}'],
     languageOptions: {
       ecmaVersion: 'latest',
       sourceType: 'module',
@@ -45,6 +46,22 @@ export default [
       'prefer-const': 'error',
       'no-var': 'error',
     },
+  },
+  {
+    files: ['apps/web/**/*.{js,jsx}'],
+    languageOptions: {
+      globals: { ...globals.browser },
+      parserOptions: { ecmaFeatures: { jsx: true } },
+    },
+    plugins: { 'react-hooks': reactHooks },
+    rules: {
+      'react-hooks/rules-of-hooks': 'error',
+      'react-hooks/exhaustive-deps': 'error',
+    },
+  },
+  {
+    files: ['apps/web/public/**/*.js'],
+    languageOptions: { sourceType: 'script' },
   },
   eslintConfigPrettier,
 ];

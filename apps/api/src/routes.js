@@ -13,6 +13,7 @@ import { createGateRouter } from './modules/gate/gate.routes.js';
 import { createHealthRouter } from './modules/health/health.routes.js';
 import { createNotificationsRouter } from './modules/notifications/notifications.routes.js';
 import { createPreAdvicesRouter } from './modules/preadvices/preadvices.routes.js';
+import { createPublicRouter } from './modules/public/public.routes.js';
 import { createReportsRouter } from './modules/reports/reports.routes.js';
 import { createTariffsRouter } from './modules/tariffs/tariffs.routes.js';
 import { createTimeSlotsRouter } from './modules/timeslots/timeslots.routes.js';
@@ -23,6 +24,7 @@ import { createYardRouter } from './modules/yard/yard.routes.js';
 
 export const API_MOUNTS = [
   ['/health', createHealthRouter],
+  ['/public', createPublicRouter],
   ['/auth', createAuthRouter],
   ['/users', createUsersRouter],
   ['/companies', createCompaniesRouter],

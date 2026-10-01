@@ -22,6 +22,7 @@ const TABLE_NAMES = [
   'customsHolds',
   'storageInvoices',
   'notifications',
+  'auditLogs',
 ];
 
 const COMPANY_SHARE_WEIGHTS = Object.fromEntries(
