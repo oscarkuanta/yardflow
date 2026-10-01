@@ -6,7 +6,7 @@ import { toContainerDetail, toContainerSummary } from './containers.presenter.js
 
 const USER_NAME = { select: { id: true, name: true } };
 
-const SUMMARY_INCLUDE = {
+export const SUMMARY_INCLUDE = {
   ownerCompany: { select: { id: true, code: true, name: true } },
   position: { include: { block: { select: { code: true } } } },
   holds: { where: { releasedAt: null }, select: { id: true, releasedAt: true } },
@@ -30,7 +30,7 @@ function holdFilter(hasHold) {
   return { holds: hasHold ? activeHold : { none: { releasedAt: null } } };
 }
 
-function buildWhere(query, user) {
+export function buildContainersWhere(query, user) {
   return {
     ...ownedContainersScope(user),
     ...holdFilter(query.hasHold),
@@ -48,7 +48,7 @@ export function createContainersService({ prisma, clock }) {
   async function list(query, user) {
     const now = clock();
     return paginate(prisma, prisma.container, {
-      where: buildWhere(query, user),
+      where: buildContainersWhere(query, user),
       include: SUMMARY_INCLUDE,
       query,
       present: (container) => toContainerSummary(container, now),

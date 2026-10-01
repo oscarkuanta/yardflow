@@ -129,3 +129,17 @@ Record every decision that is not fixed by docs/SPEC.md: date, decision, reason.
 - **The notification list adds `unreadCount`** to the usual page fields, so the portal badge needs no second request. Marking a notification read twice keeps the first read time.
 - **The EIR and the invoice PDF share small drawing helpers in `src/lib/pdf.js`.** Each document keeps a plain data model that is unit tested.
 - **`socket.io-client` is a dev dependency of the API** for the socket tests. The web app will add it as its own dependency in Phase 9.
+
+## 2026-10-01, Phase 8
+
+- **Yard occupancy is measured in TEU**: the TEU of the containers in the yard (20 ft = 1, 40 ft and 45 ft = 2) against the TEU capacity of all slots (a SMALL slot holds 1 TEU, a LARGE slot 2). The percent has one decimal.
+- **"Trucks expected in the current slot" counts `ACTIVE` pre-advices of the slot whose hour it is now in Berlin.** Outside gate hours, or on a day without slots, `currentSlot` is `null`.
+- **Average dwell in the KPIs** is the mean time since gate-in of all containers in the yard, in days with one decimal.
+- **The weekly dwell chart averages the completed stays of containers that left in each week.** Weeks start on Monday in Europe/Berlin, and the current week is the last of 8. A week without departures has `averageDwellDays: null`, so the chart can show a gap instead of a false 0.
+- **Gate moves per day** cover the last `days` days including today (1 to 60, default 14), counted by Berlin calendar day. Days without moves, such as Sundays, appear with 0.
+- **CSV exports stream rows in batches of 500** with cursor pagination and `csv-stringify`, so a large export never loads all rows into memory. Columns are fixed and documented. Dates are ISO 8601 UTC, booleans are `true` and `false`, and money is given both in cents and in euro (`45.00`). The filters are the same Zod schemas as the list endpoints without paging.
+- **Movement and audit log exports filter by Berlin calendar day** (`from` and `to`, both included). `from` after `to` answers 422.
+- **The audit log CSV writes `before` and `after` as JSON text.** Passwords and PINs were never stored in them (Phase 2).
+- **`src/routes.js` declares all modules in one mount table (`API_MOUNTS`).** Reason: Express 5 does not remember the path a router was mounted on. With the table, the route coverage test can list every route as mount path plus route path. It checks both directions: every Express route is documented, and every documented route exists.
+- **The audit log router is mounted at the root, because its paths are `/audit-logs` and `/audit-logs.csv`.** Its authentication runs per route, not for the whole router, so other requests are not affected.
+- **Known gap in the demo data:** the seed creates 14 days of history (section 12), so the 8-week dwell chart only has values in its last 3 weeks. Extending the history would be a seed change, not a report change. It can be done when the charts are built in Phase 10, if the empty weeks look bad.

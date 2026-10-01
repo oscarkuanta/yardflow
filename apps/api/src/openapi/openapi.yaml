@@ -49,8 +49,281 @@ tags:
     description: Storage invoices
   - name: Notifications
     description: Customer notifications. New ones also arrive live over Socket.IO as notification:new.
+  - name: Reports
+    description: KPIs and chart data (Admin and Planner)
+  - name: Exports
+    description: CSV exports with the same filters as the list screens
+  - name: Audit log
+    description: Every change and business action (Admin)
 
 paths:
+  /reports/kpis:
+    get:
+      tags: [Reports]
+      summary: KPI cards of the Planner overview
+      description: |
+        Yard occupancy in TEU, gate moves today, trucks expected in the current slot, open work orders with the
+        age of the oldest, active customs holds, and the average dwell of containers in the yard.
+      responses:
+        '200':
+          description: The KPIs
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Kpis'
+        '401':
+          $ref: '#/components/responses/NotAuthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /reports/occupancy:
+    get:
+      tags: [Reports]
+      summary: Occupancy per block (bar chart)
+      responses:
+        '200':
+          description: One entry per block
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/BlockOccupancy'
+        '401':
+          $ref: '#/components/responses/NotAuthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /reports/gate-moves:
+    get:
+      tags: [Reports]
+      summary: Gate moves per day, in and out (grouped bar chart)
+      parameters:
+        - name: days
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 60
+            default: 14
+      responses:
+        '200':
+          description: One entry per day, oldest first, today last
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        date:
+                          type: string
+                          format: date
+                        in:
+                          type: integer
+                        out:
+                          type: integer
+        '401':
+          $ref: '#/components/responses/NotAuthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+
+  /reports/dwell:
+    get:
+      tags: [Reports]
+      summary: Average dwell per week, last 8 weeks (line chart)
+      description: Weeks start on Monday in Europe/Berlin. Each week averages the stays of the containers that left in that week.
+      responses:
+        '200':
+          description: One entry per week, oldest first
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        weekStart:
+                          type: string
+                          format: date
+                        departures:
+                          type: integer
+                        averageDwellDays:
+                          type: [number, 'null']
+        '401':
+          $ref: '#/components/responses/NotAuthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /exports/containers.csv:
+    get:
+      tags: [Exports]
+      summary: Containers as CSV
+      description: Admin and Planner. Takes the filters of GET /containers.
+      parameters:
+        - name: state
+          in: query
+          schema:
+            type: string
+            enum: [EXPECTED, IN_YARD, DEPARTED]
+        - name: blockCode
+          in: query
+          schema:
+            type: string
+        - name: ownerCode
+          in: query
+          schema:
+            type: string
+        - name: hasHold
+          in: query
+          schema:
+            type: string
+            enum: ['true', 'false']
+        - name: search
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          $ref: '#/components/responses/Csv'
+        '401':
+          $ref: '#/components/responses/NotAuthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+
+  /exports/movements.csv:
+    get:
+      tags: [Exports]
+      summary: Movements as CSV
+      description: Admin and Planner.
+      parameters:
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum: [GATE_IN, GATE_OUT, DISCHARGE, LOAD, YARD_MOVE, RELOCATION]
+        - name: containerNumber
+          in: query
+          schema:
+            type: string
+        - $ref: '#/components/parameters/From'
+        - $ref: '#/components/parameters/To'
+      responses:
+        '200':
+          $ref: '#/components/responses/Csv'
+        '401':
+          $ref: '#/components/responses/NotAuthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+
+  /exports/invoices.csv:
+    get:
+      tags: [Exports]
+      summary: Storage invoices as CSV
+      description: Admin only. Takes the filters of GET /invoices.
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [UNPAID, PAID, VOID]
+        - name: companyCode
+          in: query
+          schema:
+            type: string
+        - name: containerNumber
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          $ref: '#/components/responses/Csv'
+        '401':
+          $ref: '#/components/responses/NotAuthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+
+  /audit-logs:
+    get:
+      tags: [Audit log]
+      summary: Search the audit log
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+        - name: sort
+          in: query
+          description: 'One of id, createdAt with :asc or :desc'
+          schema:
+            type: string
+            default: createdAt:desc
+        - $ref: '#/components/parameters/AuditUserId'
+        - $ref: '#/components/parameters/AuditEntity'
+        - $ref: '#/components/parameters/AuditEntityId'
+        - $ref: '#/components/parameters/AuditAction'
+        - $ref: '#/components/parameters/From'
+        - $ref: '#/components/parameters/To'
+      responses:
+        '200':
+          description: One page of audit entries
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PageMeta'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/AuditLogEntry'
+        '401':
+          $ref: '#/components/responses/NotAuthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+
+  /audit-logs.csv:
+    get:
+      tags: [Audit log]
+      summary: Export the filtered audit log as CSV
+      parameters:
+        - $ref: '#/components/parameters/AuditUserId'
+        - $ref: '#/components/parameters/AuditEntity'
+        - $ref: '#/components/parameters/AuditEntityId'
+        - $ref: '#/components/parameters/AuditAction'
+        - $ref: '#/components/parameters/From'
+        - $ref: '#/components/parameters/To'
+      responses:
+        '200':
+          $ref: '#/components/responses/Csv'
+        '401':
+          $ref: '#/components/responses/NotAuthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+
   /customs-holds:
     get:
       tags: [Customs]
@@ -3129,7 +3402,142 @@ components:
           type: string
           format: date-time
 
+    Kpis:
+      type: object
+      properties:
+        occupancy:
+          type: object
+          properties:
+            containersInYard:
+              type: integer
+            teuUsed:
+              type: integer
+            teuCapacity:
+              type: integer
+            percent:
+              type: number
+        gateMovesToday:
+          type: object
+          properties:
+            in:
+              type: integer
+            out:
+              type: integer
+            total:
+              type: integer
+        currentSlot:
+          description: Null outside gate hours
+          type: [object, 'null']
+          properties:
+            startsAt:
+              type: string
+              format: date-time
+            endsAt:
+              type: string
+              format: date-time
+            expectedTrucks:
+              type: integer
+        openWorkOrders:
+          type: object
+          properties:
+            count:
+              type: integer
+            oldestAgeMinutes:
+              type: [integer, 'null']
+        activeHolds:
+          type: integer
+        averageDwellDays:
+          type: [number, 'null']
+        generatedAt:
+          type: string
+          format: date-time
+
+    BlockOccupancy:
+      type: object
+      properties:
+        code:
+          type: string
+        type:
+          $ref: '#/components/schemas/BlockType'
+        sizeClass:
+          $ref: '#/components/schemas/BlockSizeClass'
+        capacitySlots:
+          type: integer
+        usedSlots:
+          type: integer
+        teuCapacity:
+          type: integer
+        teuUsed:
+          type: integer
+        occupancyPercent:
+          type: number
+
+    AuditLogEntry:
+      type: object
+      properties:
+        id:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+        action:
+          type: string
+          examples: [GATE_OUT_DENIED]
+        entity:
+          type: string
+        entityId:
+          type: string
+        user:
+          type: [object, 'null']
+          properties:
+            id:
+              type: integer
+            name:
+              type: string
+            email:
+              type: string
+        ip:
+          type: [string, 'null']
+        before: {}
+        after: {}
+
   parameters:
+    From:
+      name: from
+      in: query
+      description: First day, Europe/Berlin
+      schema:
+        type: string
+        format: date
+    To:
+      name: to
+      in: query
+      description: Last day, included, Europe/Berlin
+      schema:
+        type: string
+        format: date
+    AuditUserId:
+      name: userId
+      in: query
+      schema:
+        type: integer
+    AuditEntity:
+      name: entity
+      in: query
+      schema:
+        type: string
+        examples: [Container]
+    AuditEntityId:
+      name: entityId
+      in: query
+      schema:
+        type: string
+    AuditAction:
+      name: action
+      in: query
+      schema:
+        type: string
+        examples: [MOVE]
     ItemId:
       name: itemId
       in: path
@@ -3171,6 +3579,12 @@ components:
         type: string
 
   responses:
+    Csv:
+      description: A CSV file with a header row, streamed
+      content:
+        text/csv:
+          schema:
+            type: string
     NotFound:
       description: Not found
       content:

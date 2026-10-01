@@ -6,7 +6,7 @@ import { isCustomer } from '../../lib/scope.js';
 import { createNotification } from '../notifications/notifications.js';
 import { buildInvoiceModel, renderInvoicePdf } from './invoice-pdf.js';
 
-const INVOICE_INCLUDE = {
+export const INVOICE_INCLUDE = {
   container: {
     select: {
       number: true,
@@ -47,6 +47,10 @@ function ownInvoicesScope(user) {
   return isCustomer(user) ? { container: { ownerCompanyId: user.companyId } } : {};
 }
 
+export function buildInvoicesWhere(query, user) {
+  return { status: query.status, container: containerFilter(query, user) };
+}
+
 function containerFilter(query, user) {
   return {
     ...(isCustomer(user) && { ownerCompanyId: user.companyId }),
@@ -58,7 +62,7 @@ function containerFilter(query, user) {
 export function createInvoicesService({ prisma, auditService, eventBus, clock }) {
   async function list(query, user) {
     return paginate(prisma, prisma.storageInvoice, {
-      where: { status: query.status, container: containerFilter(query, user) },
+      where: buildInvoicesWhere(query, user),
       include: INVOICE_INCLUDE,
       query,
       present: (invoice) => toInvoiceResponse(invoice, !isCustomer(user)),

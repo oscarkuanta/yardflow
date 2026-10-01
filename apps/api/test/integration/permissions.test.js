@@ -60,6 +60,15 @@ const ENDPOINTS = [
   ['get', '/notifications', ['CUSTOMER']],
   ['post', '/notifications/999999/read', ['CUSTOMER']],
   ['post', '/notifications/read-all', ['CUSTOMER']],
+  ['get', '/reports/kpis', PLANNING],
+  ['get', '/reports/occupancy', PLANNING],
+  ['get', '/reports/gate-moves', PLANNING],
+  ['get', '/reports/dwell', PLANNING],
+  ['get', '/exports/containers.csv', PLANNING],
+  ['get', '/exports/movements.csv', PLANNING],
+  ['get', '/exports/invoices.csv', ['ADMIN']],
+  ['get', '/audit-logs', ['ADMIN']],
+  ['get', '/audit-logs.csv', ['ADMIN']],
 ];
 
 const CASES = ENDPOINTS.flatMap(([method, path, allowedRoles]) =>
