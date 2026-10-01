@@ -13,7 +13,7 @@ const LINKS = [
 
 export function LandingTopBar() {
   return (
-    <header className="sticky top-3 z-30 px-4 md:px-8">
+    <header data-theme="dark" className="sticky top-3 z-30 px-4 text-ink md:px-8">
       <nav
         aria-label="Main"
         className="glass mx-auto flex max-w-7xl items-center justify-between gap-4 rounded-full py-1.5 pl-5 pr-1.5"

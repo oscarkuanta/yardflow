@@ -48,6 +48,19 @@ describe('landing page', () => {
     expect(screen.getByText(/containers tracked right now/)).toHaveTextContent('900');
   });
 
+  it('keeps the hero and top bar in the dark Night Ops look in the light theme', async () => {
+    window.localStorage.setItem('yardflow.theme', 'light');
+    stubApi({ 'GET /public/stats': () => jsonResponse(200, { data: STATS }) });
+    renderApp('/');
+    const hero = screen.getByRole('heading', { level: 1 }).closest('section');
+    expect(document.documentElement.dataset.theme).toBe('light');
+    expect(hero).toHaveAttribute('data-theme', 'dark');
+    expect(screen.getByRole('navigation', { name: 'Main' }).closest('header')).toHaveAttribute(
+      'data-theme',
+      'dark',
+    );
+  });
+
   it('shows an empty gate feed before the first truck', async () => {
     stubApi({
       'GET /public/stats': () => jsonResponse(200, { data: { ...STATS, recentGateEvents: [] } }),

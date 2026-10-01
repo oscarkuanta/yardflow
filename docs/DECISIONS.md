@@ -184,3 +184,7 @@ Record every decision that is not fixed by docs/SPEC.md: date, decision, reason.
 - **The CSV import reads the file in the browser and sends it as `text/csv`**, which is what the API expects. All problems of a failed import are listed with their line numbers.
 - **CSV exports are plain links** to the export endpoints with the current filters. The session cookie goes along because the web and the API share one origin.
 - **No browser test of a live gate-in was possible in this session**, because the demo PINs belong to the time slot of the last seed and the gate was closed. The gate flows are covered by component tests with a mocked API.
+
+## 2026-10-01, Landing fix before Phase 11
+
+- **The landing hero and its top bar always use the dark Night Ops tokens** (`data-theme="dark"` on the hero section and the top bar), also when the page follows a light system theme. Reason: in the light theme a 72% light veil over the night harbour photo made the hero look washed out and much brighter than the approved mockup. DESIGN section 6.1 asks for the photo darkened with a gradient from 55% dark to solid background. The sections below the hero still follow the chosen theme.

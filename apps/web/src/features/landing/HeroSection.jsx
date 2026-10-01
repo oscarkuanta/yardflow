@@ -26,14 +26,17 @@ function LivePill({ stats }) {
 
 export function HeroSection({ stats, isPending }) {
   return (
-    <section className="relative -mt-[68px] overflow-hidden lg:min-h-[810px]">
+    <section
+      data-theme="dark"
+      className="relative -mt-[68px] overflow-hidden bg-bg text-ink lg:min-h-[810px]"
+    >
       <div aria-hidden="true" className="absolute inset-0">
         <ResponsiveImage name="night-harbor" alt="" eager className="h-full w-full object-cover" />
         <div
           className="absolute inset-0"
           style={{
             background:
-              'linear-gradient(180deg, var(--hero-veil) 0%, var(--hero-veil-middle) 45%, var(--bg) 100%)',
+              'linear-gradient(180deg, var(--hero-veil) 0%, var(--hero-veil-middle) 45%, rgba(7, 9, 12, 0.8) 75%, var(--bg) 100%)',
           }}
         />
       </div>
