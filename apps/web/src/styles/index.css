@@ -51,6 +51,30 @@
   .animate-fade-in {
     animation: fade-in 150ms ease-out;
   }
+
+  .animate-stack-pulse {
+    animation: stack-pulse 600ms ease-out;
+  }
+
+  .animate-slide-in {
+    animation: slide-in 200ms ease-out;
+  }
+}
+
+.yard-texture {
+  background-image: url('/images/aerial-stacks-1600.jpg');
+  background-size: cover;
+  background-position: center;
+  opacity: 0.15;
+  filter: saturate(0.5);
+}
+
+[data-theme='light'] .yard-texture {
+  display: none;
+}
+
+.yard-vignette {
+  background: radial-gradient(ellipse at center, transparent 55%, var(--bg) 100%);
 }
 
 @keyframes pulse-dot {
@@ -60,6 +84,29 @@
   }
   50% {
     opacity: 0.35;
+  }
+}
+
+@keyframes stack-pulse {
+  0% {
+    stroke-width: 0;
+  }
+  40% {
+    stroke-width: 6;
+  }
+  100% {
+    stroke-width: 0;
+  }
+}
+
+@keyframes slide-in {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 

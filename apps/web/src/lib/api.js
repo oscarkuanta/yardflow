@@ -30,15 +30,36 @@ async function readJson(response) {
   }
 }
 
-export async function apiRequest(path, { method = 'GET', body, signal } = {}) {
-  const hasBody = body !== undefined;
+function requestPayload(body, text, contentType) {
+  if (text !== undefined) {
+    return { headers: { 'Content-Type': contentType }, body: text };
+  }
+  if (body !== undefined) {
+    return { headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) };
+  }
+  return { headers: {}, body: undefined };
+}
+
+export function queryString(params = {}) {
+  const entries = Object.entries(params).filter(
+    ([, value]) => value !== undefined && value !== null && value !== '',
+  );
+  if (entries.length === 0) {
+    return '';
+  }
+  return `?${new URLSearchParams(entries.map(([key, value]) => [key, String(value)]))}`;
+}
+
+export async function apiRequest(
+  path,
+  { method = 'GET', body, text, contentType = 'text/plain', signal } = {},
+) {
   let response;
   try {
     response = await fetch(`${API_BASE}${path}`, {
       method,
       credentials: 'include',
-      headers: hasBody ? { 'Content-Type': 'application/json' } : {},
-      body: hasBody ? JSON.stringify(body) : undefined,
+      ...requestPayload(body, text, contentType),
       signal,
     });
   } catch (error) {

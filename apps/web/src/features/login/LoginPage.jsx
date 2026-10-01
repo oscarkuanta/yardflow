@@ -120,6 +120,7 @@ export function LoginPage() {
           name="ship-cranes"
           alt=""
           sizes="50vw"
+          eager
           className="absolute inset-0 h-full w-full object-cover"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />

@@ -186,7 +186,7 @@ describe('protected areas', () => {
     const navigation = await screen.findByRole('navigation', { name: 'Staff' });
     expect(within(navigation).getByRole('link', { name: /Vessels/ })).toBeInTheDocument();
     expect(within(navigation).queryByRole('link', { name: /Gate/ })).not.toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Vessels' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Vessels' })).toBeInTheDocument();
   });
 
   it('signs out and returns to the login page', async () => {

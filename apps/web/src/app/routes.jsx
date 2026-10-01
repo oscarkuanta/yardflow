@@ -1,3 +1,4 @@
+import { lazy } from 'react';
 import { RequireAuth } from '../features/auth/RequireAuth.jsx';
 import { STAFF_ROLES } from '../features/auth/auth-api.js';
 import { LandingPage } from '../features/landing/LandingPage.jsx';
@@ -11,16 +12,31 @@ import {
   PortalSlotsPage,
 } from '../routes/portal/portal-pages.jsx';
 import { StaffShell } from '../routes/staff/StaffShell.jsx';
-import {
-  AdminPage,
-  CustomsPage,
-  GatePage,
-  ReportsPage,
-  VesselsPage,
-  WorkOrdersPage,
-  YardOverviewPage,
-} from '../routes/staff/staff-pages.jsx';
+
 import { STAFF_NAVIGATION } from '../routes/staff/staff-navigation.js';
+
+function lazyPage(load, exportName) {
+  return lazy(() => load().then((module) => ({ default: module[exportName] })));
+}
+
+const YardOverviewPage = lazyPage(
+  () => import('../features/yard/YardOverviewPage.jsx'),
+  'YardOverviewPage',
+);
+const GatePage = lazyPage(() => import('../features/gate/GatePage.jsx'), 'GatePage');
+const VesselsPage = lazyPage(() => import('../features/vessels/VesselsPage.jsx'), 'VesselsPage');
+const VesselDetailPage = lazyPage(
+  () => import('../features/vessels/VesselDetailPage.jsx'),
+  'VesselDetailPage',
+);
+const WorkOrdersPage = lazyPage(
+  () => import('../features/work-orders/WorkOrdersPage.jsx'),
+  'WorkOrdersPage',
+);
+const CustomsPage = lazyPage(() => import('../features/customs/CustomsPage.jsx'), 'CustomsPage');
+const BillingPage = lazyPage(() => import('../features/billing/BillingPage.jsx'), 'BillingPage');
+const ReportsPage = lazyPage(() => import('../features/reports/ReportsPage.jsx'), 'ReportsPage');
+const AdminPage = lazyPage(() => import('../features/admin/AdminPage.jsx'), 'AdminPage');
 
 const STAFF_PAGES = {
   '/app': YardOverviewPage,
@@ -28,6 +44,7 @@ const STAFF_PAGES = {
   '/app/vessels': VesselsPage,
   '/app/work-orders': WorkOrdersPage,
   '/app/customs': CustomsPage,
+  '/app/billing': BillingPage,
   '/app/reports': ReportsPage,
   '/app/admin': AdminPage,
 };
@@ -52,7 +69,17 @@ export const routes = [
         <StaffShell />
       </RequireAuth>
     ),
-    children: STAFF_NAVIGATION.map(staffChildRoute),
+    children: [
+      ...STAFF_NAVIGATION.map(staffChildRoute),
+      {
+        path: 'vessels/:visitId',
+        element: (
+          <RequireAuth roles={['ADMIN', 'PLANNER']}>
+            <VesselDetailPage />
+          </RequireAuth>
+        ),
+      },
+    ],
   },
   {
     path: '/portal',

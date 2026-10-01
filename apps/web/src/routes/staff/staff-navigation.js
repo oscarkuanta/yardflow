@@ -1,4 +1,13 @@
-import { BarChart3, Boxes, ClipboardCheck, Settings, Shield, Ship, Truck } from 'lucide-react';
+import {
+  BarChart3,
+  Boxes,
+  ClipboardCheck,
+  Receipt,
+  Settings,
+  Shield,
+  Ship,
+  Truck,
+} from 'lucide-react';
 
 export const STAFF_NAVIGATION = [
   {
@@ -17,6 +26,7 @@ export const STAFF_NAVIGATION = [
     roles: ['ADMIN', 'PLANNER'],
   },
   { path: '/app/customs', label: 'Customs', icon: Shield, roles: ['ADMIN'] },
+  { path: '/app/billing', label: 'Billing', icon: Receipt, roles: ['ADMIN'] },
   { path: '/app/reports', label: 'Reports', icon: BarChart3, roles: ['ADMIN', 'PLANNER'] },
   { path: '/app/admin', label: 'Admin', icon: Settings, roles: ['ADMIN'] },
 ];

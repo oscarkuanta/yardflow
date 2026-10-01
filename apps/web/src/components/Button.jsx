@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 
 const BASE =
-  'inline-flex items-center justify-center gap-2 rounded-control px-5 font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-60';
+  'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-control px-5 font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-60';
 
 const VARIANTS = {
   primary: 'bg-accent text-on-accent hover:brightness-95',

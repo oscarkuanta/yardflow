@@ -163,3 +163,24 @@ Record every decision that is not fixed by docs/SPEC.md: date, decision, reason.
 - **Staff and portal screens are placeholders that say what will appear there.** The routes, role checks and shells are real, so later phases only fill in the pages.
 - **Route protection lives in one `RequireAuth` component.** Guests go to `/login` (and come back afterwards), a user with the wrong role goes to their own home: `/portal` for customers, `/app` for staff. The API still checks every role; the web check only avoids showing screens that would fail.
 - **The API client never retries 4xx answers** and retries other failures at most twice.
+
+## 2026-10-01, Phase 10
+
+- **Recharts 2 is the chart library** named in the spec. Version 2 is used because it supports React 18.
+- **Staff pages are loaded on demand** (`React.lazy` per page). Recharts alone is about 380 kB, so the public landing page and the login page stay small, and Vite no longer warns about a large bundle.
+- **Socket.IO events only invalidate TanStack Query caches** (section 10). `src/lib/realtime.jsx` holds one table that says which event makes which cache stale. Screens that need the event itself (the yard callout, live gate denials, relocation progress at the gate) subscribe to it as well.
+- **The yard map is SVG.** Blocks are placed by `mapX` and `mapY`, scaled 2.8 px per metre across and 6 px per metre down, so the six demo blocks fit between the two side columns. Stacks are shaded in four steps of accent from 20% to 100% by height. A held stack is red. The DG block always has a warning outline, other blocks get a warning or danger outline at 75% and 90% occupancy.
+- **The map has a table view** (DESIGN section 8) that lists every used stack per block with a button to open it, for keyboard and screen reader users.
+- **The occupancy sparkline shows gate moves per hour for the last 24 hours.** There is no hourly occupancy history in the API, and gate moves are what changes occupancy. "Boxes today" is gate-ins minus gate-outs of the Berlin day.
+- **Gate operators see the yard without planner data.** Reports, work orders and vessel visits are Admin and Planner only (section 3), so for a gate operator the yard page does not request them: the mini tiles show "Stacks on hold" from the map instead of the KPI hold count, and the work order and vessel panels are hidden.
+- **The gate-out screen follows relocations through `workorder:changed` events**, not through `GET /work-orders`, because gate operators may not read work orders. When the last relocation is done, the checks run again by themselves and "Complete gate-out" becomes active.
+- **The gate-in screen checks the typed container number against the pre-advice in the browser** and shows the ISO 6346 result live with the shared check-digit code. The API still checks both.
+- **Damage notes apply to every damage reported in one inspection.** The design shows one note field, while the API stores a note per damage report.
+- **The EIR opens in a new tab after gate-in and gate-out**, and stays available from the "Print EIR ticket" button.
+- **Billing has its own navigation item for admins.** The spec lists billing as a staff screen in phase 10, but the design's top bar list does not include it.
+- **The search pill finds containers (all staff) and vessel visits (Admin and Planner).** The API has no plate search, so plates are not searchable; the placeholder says "Container or vessel".
+- **Admin sections are tabs on one page**, with the active tab in the URL (`/app/admin?tab=audit-log`), so a section can be linked and the back button works.
+- **ETA and ETD are typed with the browser's date and time picker** and sent as ISO time. The browser uses its own time zone, which is Berlin for the terminal staff.
+- **The CSV import reads the file in the browser and sends it as `text/csv`**, which is what the API expects. All problems of a failed import are listed with their line numbers.
+- **CSV exports are plain links** to the export endpoints with the current filters. The session cookie goes along because the web and the API share one origin.
+- **No browser test of a live gate-in was possible in this session**, because the demo PINs belong to the time slot of the last seed and the gate was closed. The gate flows are covered by component tests with a mocked API.

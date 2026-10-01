@@ -181,6 +181,7 @@ describe('roles and navigation', () => {
       'Vessels',
       'Work orders',
       'Customs',
+      'Billing',
       'Reports',
       'Admin',
     ]);
