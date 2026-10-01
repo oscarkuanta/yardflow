@@ -6,9 +6,9 @@ import { createUsersController } from './users.controller.js';
 import { createUserBody, listUsersQuery, updateUserBody } from './users.schemas.js';
 import { createUsersService } from './users.service.js';
 
-export function createUsersRouter({ prisma, auditService, requireAuth }) {
+export function createUsersRouter({ prisma, auditService, eventBus, requireAuth }) {
   const controller = createUsersController({
-    usersService: createUsersService({ prisma, auditService }),
+    usersService: createUsersService({ prisma, auditService, eventBus }),
   });
   const router = Router();
   router.use(requireAuth, requireRole('ADMIN'));

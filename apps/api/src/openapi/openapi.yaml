@@ -10,6 +10,10 @@ info:
 
     Demo logins (password `demo1234`): `admin@yardflow.dev`, `planner@yardflow.dev`,
     `gate@yardflow.dev`, `ops@hansenorth.example`, `ops@nordtrans.example`.
+
+    Live updates come over Socket.IO on the same origin (path `/socket.io`), using the same session cookie.
+    Staff join the room `staff` and receive `yard:changed`, `gate:event`, `workorder:changed` and `vessel:changed`.
+    Customers join `company:<id>` and receive `notification:new` and `container:changed` for their company only.
 servers:
   - url: /api/v1
 tags:
@@ -39,8 +43,313 @@ tags:
     description: Customer truck bookings with a 6-digit PIN
   - name: Gate
     description: Truck and PIN check, gate-in, gate-out checks and completion, EIR tickets
+  - name: Customs
+    description: Customs holds that block gate-out and loading (Admin)
+  - name: Invoices
+    description: Storage invoices
+  - name: Notifications
+    description: Customer notifications. New ones also arrive live over Socket.IO as notification:new.
 
 paths:
+  /customs-holds:
+    get:
+      tags: [Customs]
+      summary: List customs holds
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+        - name: sort
+          in: query
+          description: 'One of id, placedAt, releasedAt with :asc or :desc'
+          schema:
+            type: string
+            default: placedAt:desc
+        - $ref: '#/components/parameters/IsActive'
+        - name: containerNumber
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: One page of holds
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PageMeta'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/CustomsHold'
+        '401':
+          $ref: '#/components/responses/NotAuthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    post:
+      tags: [Customs]
+      summary: Place a customs hold
+      description: Only on an EXPECTED or IN_YARD container, and only one active hold at a time. The owner company is notified.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [containerNumber, reason]
+              properties:
+                containerNumber:
+                  type: string
+                reason:
+                  type: string
+                  minLength: 3
+                  maxLength: 200
+            example:
+              containerNumber: HNFU 204571 1
+              reason: X-ray inspection requested
+      responses:
+        '201':
+          description: Placed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/CustomsHold'
+        '401':
+          $ref: '#/components/responses/NotAuthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+
+  /customs-holds/{id}/release:
+    post:
+      tags: [Customs]
+      summary: Release an active customs hold
+      description: Notifies the owner, and also sends READY_FOR_PICKUP when the container has an active pickup pre-advice.
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '200':
+          description: Released
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/CustomsHold'
+        '401':
+          $ref: '#/components/responses/NotAuthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /invoices:
+    get:
+      tags: [Invoices]
+      summary: List storage invoices
+      description: Admin and Customer. Customers only ever see invoices of their own company.
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+        - name: sort
+          in: query
+          description: 'One of id, createdAt, amountCents, number with :asc or :desc'
+          schema:
+            type: string
+            default: createdAt:desc
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [UNPAID, PAID, VOID]
+        - name: containerNumber
+          in: query
+          schema:
+            type: string
+        - name: companyCode
+          in: query
+          description: Admin only
+          schema:
+            type: string
+      responses:
+        '200':
+          description: One page of invoices
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PageMeta'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/InvoiceDetail'
+        '401':
+          $ref: '#/components/responses/NotAuthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /invoices/{id}/mark-paid:
+    post:
+      tags: [Invoices]
+      summary: Mark an unpaid invoice as paid
+      description: Admin only. Notifies the company with INVOICE_PAID.
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '200':
+          description: Paid
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/InvoiceDetail'
+        '401':
+          $ref: '#/components/responses/NotAuthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /invoices/{id}/pdf:
+    get:
+      tags: [Invoices]
+      summary: Storage invoice as PDF
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '200':
+          description: The PDF
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+        '401':
+          $ref: '#/components/responses/NotAuthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /notifications:
+    get:
+      tags: [Notifications]
+      summary: Notifications of the own company
+      description: Customer only. The response also contains the unread count for the badge.
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+        - name: sort
+          in: query
+          description: 'One of id, createdAt with :asc or :desc'
+          schema:
+            type: string
+            default: createdAt:desc
+        - name: unread
+          in: query
+          schema:
+            type: string
+            enum: ['true', 'false']
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum:
+              [
+                CONTAINER_IN_YARD,
+                READY_FOR_PICKUP,
+                CUSTOMS_HOLD_PLACED,
+                CUSTOMS_HOLD_RELEASED,
+                INVOICE_ISSUED,
+                INVOICE_PAID,
+                GATE_OUT_DONE,
+                PRE_ADVICE_EXPIRED,
+              ]
+      responses:
+        '200':
+          description: One page of notifications
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PageMeta'
+                  - type: object
+                    properties:
+                      unreadCount:
+                        type: integer
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Notification'
+        '401':
+          $ref: '#/components/responses/NotAuthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /notifications/{id}/read:
+    post:
+      tags: [Notifications]
+      summary: Mark one notification as read
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '200':
+          description: Read
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Notification'
+        '401':
+          $ref: '#/components/responses/NotAuthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /notifications/read-all:
+    post:
+      tags: [Notifications]
+      summary: Mark all own notifications as read
+      responses:
+        '200':
+          description: How many were marked
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      markedRead:
+                        type: integer
+        '401':
+          $ref: '#/components/responses/NotAuthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
   /pre-advices:
     get:
       tags: [Pre-advices]
@@ -2733,6 +3042,92 @@ components:
           format: date-time
         eirUrl:
           type: string
+
+    CustomsHold:
+      type: object
+      properties:
+        id:
+          type: integer
+        reason:
+          type: string
+        isActive:
+          type: boolean
+        containerNumber:
+          type: string
+        displayNumber:
+          type: string
+        containerState:
+          type: string
+          enum: [EXPECTED, IN_YARD, DEPARTED]
+        positionCode:
+          type: [string, 'null']
+        owner:
+          $ref: '#/components/schemas/Company'
+        placedBy:
+          type: object
+          properties:
+            id:
+              type: integer
+            name:
+              type: string
+        placedAt:
+          type: string
+          format: date-time
+        releasedBy:
+          type: [object, 'null']
+        releasedAt:
+          type: [string, 'null']
+          format: date-time
+
+    InvoiceDetail:
+      allOf:
+        - $ref: '#/components/schemas/Invoice'
+        - type: object
+          properties:
+            containerNumber:
+              type: string
+            displayNumber:
+              type: string
+            company:
+              $ref: '#/components/schemas/Company'
+            days:
+              type: integer
+            freeDays:
+              type: integer
+            dailyRateCents:
+              type: integer
+            paidAt:
+              type: [string, 'null']
+              format: date-time
+            paidMarkedBy:
+              description: Admin only
+              type: [object, 'null']
+            createdAt:
+              type: string
+              format: date-time
+            pdfUrl:
+              type: string
+
+    Notification:
+      type: object
+      properties:
+        id:
+          type: integer
+        type:
+          type: string
+        message:
+          type: string
+          examples: [HNFU 204571 1 is in the yard at B-02-05-2.]
+        containerNumber:
+          type: [string, 'null']
+        isRead:
+          type: boolean
+        readAt:
+          type: [string, 'null']
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
 
   parameters:
     ItemId:

@@ -6,9 +6,9 @@ import { createCompaniesController } from './companies.controller.js';
 import { createCompanyBody, listCompaniesQuery, updateCompanyBody } from './companies.schemas.js';
 import { createCompaniesService } from './companies.service.js';
 
-export function createCompaniesRouter({ prisma, auditService, requireAuth }) {
+export function createCompaniesRouter({ prisma, auditService, eventBus, requireAuth }) {
   const controller = createCompaniesController({
-    companiesService: createCompaniesService({ prisma, auditService }),
+    companiesService: createCompaniesService({ prisma, auditService, eventBus }),
   });
   const router = Router();
   router.use(requireAuth, requireRole('ADMIN'));

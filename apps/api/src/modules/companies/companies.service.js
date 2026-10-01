@@ -1,7 +1,7 @@
 import { conflict, notFound } from '../../lib/errors.js';
 import { paginate } from '../../lib/pagination.js';
 import { rethrowUniqueViolation } from '../../lib/prisma-errors.js';
-import { destroySessionsOfUsers } from '../../lib/user-sessions.js';
+import { revokeSessions } from '../../lib/user-sessions.js';
 
 const COMPANY_INCLUDE = { _count: { select: { users: true } } };
 
@@ -20,7 +20,7 @@ function buildWhere({ isActive, search }) {
   };
 }
 
-export function createCompaniesService({ prisma, auditService }) {
+export function createCompaniesService({ prisma, auditService, eventBus }) {
   async function list(query) {
     return paginate(prisma, prisma.company, {
       where: buildWhere(query),
@@ -58,8 +58,9 @@ export function createCompaniesService({ prisma, auditService }) {
 
   async function endCustomerSessions(companyId) {
     const users = await prisma.user.findMany({ where: { companyId }, select: { id: true } });
-    await destroySessionsOfUsers(
+    await revokeSessions(
       prisma,
+      eventBus,
       users.map((user) => user.id),
     );
   }

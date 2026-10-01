@@ -1,7 +1,7 @@
 import { formatContainerNumber } from '@yardflow/shared';
-import PDFDocument from 'pdfkit';
 import { TERMINAL_NAME } from '../../config/terminal.js';
 import { formatKilograms, formatTerminalDateTime } from '../../lib/format.js';
+import { PDF_COLORS as COLORS, drawFields, drawTitle, renderPdf } from '../../lib/pdf.js';
 import { sizeLabel } from '../yard/stacking-rules.js';
 
 const SIDE_LABELS = {
@@ -27,14 +27,6 @@ const NET_LAYOUT = [
   ['BACK', 3, 1],
   ['FLOOR', 1, 2],
 ];
-const COLORS = {
-  text: '#0B0F14',
-  muted: '#5B6772',
-  line: '#C9D0D6',
-  damage: '#F6C6C6',
-  accent: '#4F6B00',
-};
-
 function containerType(container) {
   return `${sizeLabel(container.size)}${container.isHighCube ? ' high cube' : ''}`;
 }
@@ -69,22 +61,6 @@ export function buildEirModel({ transaction, container, operator, damages, posit
     damagedSides: [...new Set(damages.map((damage) => damage.side))],
     noDamage: damages.length === 0,
   };
-}
-
-function drawHeader(document, model) {
-  document.fillColor(COLORS.accent).fontSize(10).text(model.terminalName.toUpperCase());
-  document.fillColor(COLORS.text).fontSize(20).text(model.title);
-  document.moveDown(0.8);
-}
-
-function drawFields(document, fields) {
-  for (const [label, value] of fields) {
-    const y = document.y;
-    document.fillColor(COLORS.muted).fontSize(10).text(label, 50, y, { width: 140 });
-    document.fillColor(COLORS.text).fontSize(11).text(value, 200, y, { width: 340 });
-    document.moveDown(0.3);
-  }
-  document.moveDown(0.8);
 }
 
 function drawDamageTable(document, model) {
@@ -126,16 +102,10 @@ function drawContainerNet(document, damagedSides) {
 }
 
 export function renderEirPdf(model) {
-  return new Promise((resolve, reject) => {
-    const document = new PDFDocument({ size: 'A4', margin: 50, info: { Title: model.title } });
-    const chunks = [];
-    document.on('data', (chunk) => chunks.push(chunk));
-    document.on('end', () => resolve(Buffer.concat(chunks)));
-    document.on('error', reject);
-    drawHeader(document, model);
+  return renderPdf(model.title, (document) => {
+    drawTitle(document, model);
     drawFields(document, model.fields);
     drawDamageTable(document, model);
     drawContainerNet(document, model.damagedSides);
-    document.end();
   });
 }

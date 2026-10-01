@@ -2,7 +2,7 @@ import { conflict, notFound, validationFailed } from '../../lib/errors.js';
 import { paginate } from '../../lib/pagination.js';
 import { hashSecret } from '../../lib/passwords.js';
 import { rethrowUniqueViolation } from '../../lib/prisma-errors.js';
-import { destroySessionsOfUsers } from '../../lib/user-sessions.js';
+import { revokeSessions } from '../../lib/user-sessions.js';
 import { USER_COMPANY_INCLUDE, toPublicUser } from './users.presenter.js';
 import { companyRuleProblem, ownAccessProblem } from './users.rules.js';
 
@@ -19,7 +19,7 @@ function buildWhere({ role, companyId, isActive, search }) {
   };
 }
 
-export function createUsersService({ prisma, auditService }) {
+export function createUsersService({ prisma, auditService, eventBus }) {
   async function assertCompanyFitsRole(role, companyId) {
     const problem = companyRuleProblem(role, companyId);
     if (problem) {
@@ -111,7 +111,7 @@ export function createUsersService({ prisma, auditService }) {
       emailTaken,
     );
     if (existing.isActive && !updated.isActive) {
-      await destroySessionsOfUsers(prisma, [id]);
+      await revokeSessions(prisma, eventBus, [id]);
     }
     return toPublicUser(updated);
   }

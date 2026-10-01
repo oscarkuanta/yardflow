@@ -2,6 +2,9 @@ import { Router } from 'express';
 import { createRequireAuth } from './middleware/authenticate.js';
 import { createLoginRateLimiter } from './middleware/rate-limit.js';
 import { createAuthRouter } from './modules/auth/auth.routes.js';
+import { createInvoicesRouter } from './modules/billing/invoices.routes.js';
+import { createCustomsRouter } from './modules/customs/customs.routes.js';
+import { createNotificationsRouter } from './modules/notifications/notifications.routes.js';
 import { createBlocksRouter } from './modules/blocks/blocks.routes.js';
 import { createContainersRouter } from './modules/containers/containers.routes.js';
 import { createCompaniesRouter } from './modules/companies/companies.routes.js';
@@ -37,5 +40,8 @@ export function createApiRouter({ loginAttemptsPerWindow, ...services }) {
   router.use('/vessel-visits', createVesselsRouter(dependencies));
   router.use('/pre-advices', createPreAdvicesRouter(dependencies));
   router.use('/gate', createGateRouter(dependencies));
+  router.use('/customs-holds', createCustomsRouter(dependencies));
+  router.use('/invoices', createInvoicesRouter(dependencies));
+  router.use('/notifications', createNotificationsRouter(dependencies));
   return router;
 }

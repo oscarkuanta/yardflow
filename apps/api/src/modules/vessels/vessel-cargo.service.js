@@ -1,6 +1,12 @@
 import { formatContainerNumber } from '@yardflow/shared';
 import { conflict, notFound } from '../../lib/errors.js';
-import { NOTIFICATION_NEW, VESSEL_CHANGED, YARD_CHANGED } from '../../lib/event-bus.js';
+import {
+  CONTAINER_CHANGED,
+  NOTIFICATION_NEW,
+  VESSEL_CHANGED,
+  YARD_CHANGED,
+} from '../../lib/event-bus.js';
+import { containerChange } from '../containers/container-events.js';
 import { createNotification } from '../notifications/notifications.js';
 import {
   publishWorkOrderChanges,
@@ -133,12 +139,14 @@ export function createVesselCargoService({ prisma, auditService, eventBus, clock
         containerNumber: container.number,
         positionCode,
         notification,
+        change: await containerChange(transaction, container),
         progress: await vesselProgress(transaction, updatedVisit),
       };
     }, POSITION_WRITE_TRANSACTION);
     eventBus.publish(YARD_CHANGED, yardChanges(result.containerNumber, null, result.positionCode));
     eventBus.publish(VESSEL_CHANGED, result.progress);
     eventBus.publish(NOTIFICATION_NEW, result.notification);
+    eventBus.publish(CONTAINER_CHANGED, result.change);
     return {
       itemId,
       containerNumber: result.containerNumber,
@@ -201,6 +209,7 @@ export function createVesselCargoService({ prisma, auditService, eventBus, clock
       return {
         containerNumber: container.number,
         fromPosition,
+        change: await containerChange(transaction, { ...container, state: 'DEPARTED' }),
         progress: await vesselProgress(transaction, updatedVisit),
       };
     }, POSITION_WRITE_TRANSACTION);
@@ -216,6 +225,7 @@ export function createVesselCargoService({ prisma, auditService, eventBus, clock
       yardChanges(outcome.containerNumber, outcome.fromPosition, null),
     );
     eventBus.publish(VESSEL_CHANGED, outcome.progress);
+    eventBus.publish(CONTAINER_CHANGED, outcome.change);
     return {
       itemId,
       containerNumber: outcome.containerNumber,

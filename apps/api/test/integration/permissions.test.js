@@ -51,6 +51,15 @@ const ENDPOINTS = [
   ['post', '/gate/out', GATE_STAFF],
   ['get', '/gate/transactions', STAFF],
   ['get', '/gate/transactions/999999/eir.pdf', ALL_ROLES],
+  ['get', '/customs-holds', ['ADMIN']],
+  ['post', '/customs-holds', ['ADMIN']],
+  ['post', '/customs-holds/999999/release', ['ADMIN']],
+  ['get', '/invoices', ['ADMIN', 'CUSTOMER']],
+  ['post', '/invoices/999999/mark-paid', ['ADMIN']],
+  ['get', '/invoices/999999/pdf', ['ADMIN', 'CUSTOMER']],
+  ['get', '/notifications', ['CUSTOMER']],
+  ['post', '/notifications/999999/read', ['CUSTOMER']],
+  ['post', '/notifications/read-all', ['CUSTOMER']],
 ];
 
 const CASES = ENDPOINTS.flatMap(([method, path, allowedRoles]) =>

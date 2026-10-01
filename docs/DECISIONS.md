@@ -114,3 +114,18 @@ Record every decision that is not fixed by docs/SPEC.md: date, decision, reason.
 - **The gate-in movement and the gate transaction share the same timestamp**, so the EIR finds the position of the transaction without a new column.
 - **The EIR is built as a plain data model (`buildEirModel`) and then drawn with pdfkit.** The model is unit tested field by field. The PDF test checks that a valid PDF comes back. The six sides are drawn as an unfolded box, with damaged sides filled in light red.
 - **Gate events published so far: `IN`, `OUT`, `DENIED` and `WAITING`.** Socket.IO delivers them in Phase 7.
+
+## 2026-10-01, Phase 7
+
+- **Socket.IO is a thin layer over the in-process event bus** (`src/realtime/socket.js`). Services never know about sockets; they publish after the transaction commits, and the realtime layer routes each event to its room. Staff events (`yard:changed`, `gate:event`, `workorder:changed`, `vessel:changed`) go to `staff`. `notification:new` and `container:changed` go to `company:<id>`. The internal `companyId` is removed from `container:changed` before it is sent.
+- **Sockets use the same Express session** (`io.engine.use(sessionMiddleware)`) and are rejected unless the session belongs to an active user of an active company.
+- **Deactivating a user or a company also disconnects their open sockets.** The services publish an internal `sessions:revoked` event after deleting the session rows. Reason: otherwise a deactivated customer would keep receiving live notifications until they reload.
+- **Staff do not receive `notification:new`.** Notifications are stored per company and only customers have a company (section 6.13).
+- **A hold change also emits `yard:changed`** with the actions `HOLD_PLACED` and `HOLD_RELEASED` when the container is in the yard. Reason: section 6.11 says placing and releasing "update the yard map live". An `EXPECTED` container has no position, so it only gets `container:changed`.
+- **Placing a hold locks the container row** (`SELECT ... FOR UPDATE`) before checking for an active hold, so two admins cannot place two active holds at the same time.
+- **`READY_FOR_PICKUP` is sent when a released hold leaves no active hold and the container has an active pickup pre-advice** (section 6.11). With only one active hold allowed, "the last active hold" is always the one being released.
+- **Marking an invoice paid is only possible from `UNPAID`** (`409 INVOICE_NOT_UNPAID` otherwise).
+- **Customer filters on invoices are merged into one `container` condition together with the company scope.** Reason: a first version let a later filter object replace the scope, so a customer filtering by another company's container number could have seen that invoice. A test now covers this case.
+- **The notification list adds `unreadCount`** to the usual page fields, so the portal badge needs no second request. Marking a notification read twice keeps the first read time.
+- **The EIR and the invoice PDF share small drawing helpers in `src/lib/pdf.js`.** Each document keeps a plain data model that is unit tested.
+- **`socket.io-client` is a dev dependency of the API** for the socket tests. The web app will add it as its own dependency in Phase 9.

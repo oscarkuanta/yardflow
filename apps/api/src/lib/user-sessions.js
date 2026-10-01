@@ -1,3 +1,5 @@
+import { SESSIONS_REVOKED } from './event-bus.js';
+
 function userIdInSession(data) {
   try {
     return JSON.parse(data ?? '{}').userId ?? null;
@@ -22,4 +24,10 @@ export async function destroySessionsOfUsers(prisma, userIds) {
     await prisma.session.deleteMany({ where: { sessionId: { in: sessionIds } } });
   }
   return sessionIds.length;
+}
+
+export async function revokeSessions(prisma, eventBus, userIds) {
+  const destroyedCount = await destroySessionsOfUsers(prisma, userIds);
+  eventBus.publish(SESSIONS_REVOKED, { userIds });
+  return destroyedCount;
 }

@@ -1,10 +1,16 @@
 import { formatContainerNumber } from '@yardflow/shared';
 import bcrypt from 'bcrypt';
 import { AppError, conflict, notFound } from '../../lib/errors.js';
-import { GATE_EVENT, NOTIFICATION_NEW, YARD_CHANGED } from '../../lib/event-bus.js';
+import {
+  CONTAINER_CHANGED,
+  GATE_EVENT,
+  NOTIFICATION_NEW,
+  YARD_CHANGED,
+} from '../../lib/event-bus.js';
 import { formatTerminalClock } from '../../lib/format.js';
 import { calendarDateToDbDate, terminalDateOf } from '../../lib/terminal-time.js';
 import { ensureInvoiceCovers } from '../billing/invoices.js';
+import { containerChange } from '../containers/container-events.js';
 import { createNotification } from '../notifications/notifications.js';
 import { isInsideWindow, slotWindow } from '../preadvices/pre-advice-window.js';
 import {
@@ -251,10 +257,11 @@ export function createGateService({
         },
         transaction,
       );
-      return { gateTransaction, container, positionCode, notification };
+      const change = await containerChange(transaction, container);
+      return { gateTransaction, container, positionCode, notification, change };
     }, POSITION_WRITE_TRANSACTION);
     forgetVerifiedTruck(session, input.preAdviceId);
-    const { gateTransaction, container, positionCode, notification } = result;
+    const { gateTransaction, container, positionCode, notification, change } = result;
     eventBus.publish(YARD_CHANGED, yardChanges(container.number, null, positionCode));
     publishGateEvent({
       id: gateTransaction.id,
@@ -266,6 +273,7 @@ export function createGateService({
       at: now,
     });
     eventBus.publish(NOTIFICATION_NEW, notification);
+    eventBus.publish(CONTAINER_CHANGED, change);
     return {
       gateTransactionId: gateTransaction.id,
       containerNumber: container.number,
@@ -458,10 +466,11 @@ export function createGateService({
         },
         transaction,
       );
-      return { gateTransaction, container, fromPosition, notification };
+      const change = await containerChange(transaction, { ...container, state: 'DEPARTED' });
+      return { gateTransaction, container, fromPosition, notification, change };
     }, POSITION_WRITE_TRANSACTION);
     forgetVerifiedTruck(session, input.preAdviceId);
-    const { gateTransaction, container, fromPosition, notification } = result;
+    const { gateTransaction, container, fromPosition, notification, change } = result;
     eventBus.publish(YARD_CHANGED, yardChanges(container.number, fromPosition, null));
     publishGateEvent({
       id: gateTransaction.id,
@@ -473,6 +482,7 @@ export function createGateService({
       at: now,
     });
     eventBus.publish(NOTIFICATION_NEW, notification);
+    eventBus.publish(CONTAINER_CHANGED, change);
     return {
       gateTransactionId: gateTransaction.id,
       containerNumber: container.number,

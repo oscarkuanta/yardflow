@@ -5,6 +5,8 @@ export const WORK_ORDER_CHANGED = 'workorder:changed';
 export const VESSEL_CHANGED = 'vessel:changed';
 export const NOTIFICATION_NEW = 'notification:new';
 export const GATE_EVENT = 'gate:event';
+export const CONTAINER_CHANGED = 'container:changed';
+export const SESSIONS_REVOKED = 'sessions:revoked';
 
 export function createEventBus() {
   const emitter = new EventEmitter();
