@@ -147,6 +147,10 @@ const KPIS = {
   averageDwellDays: 4.2,
 };
 
+function isSunday(calendarDate) {
+  return new Date(`${calendarDate}T12:00:00Z`).getUTCDay() === 0;
+}
+
 function staffApi(user, extra = {}) {
   return stubApi({
     'GET /auth/me': () => ok(user),
@@ -738,7 +742,7 @@ describe('admin', () => {
     const fetchMock = staffApi(ADMIN, {
       'GET /time-slots': (_body, url) =>
         ok(
-          url.searchParams.get('date').endsWith('04')
+          isSunday(url.searchParams.get('date'))
             ? []
             : [
                 {
