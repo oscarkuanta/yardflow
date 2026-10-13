@@ -220,4 +220,4 @@ Record every decision that is not fixed by docs/SPEC.md: date, decision, reason.
 - **The README screenshots are made by a Playwright project** (`npm run screenshots`) in the dark theme, so they can be made again after UI changes.
 - **The ERD in the README is generated** from `schema.prisma` by `apps/api/scripts/erd.js` (`npm run docs:erd`) between two markers, instead of adding a Prisma generator package.
 - **A pre-advice test used the real date for a gate-in time** while its clock was fixed to 30 September 2026, so it started failing on 1 October. The test now sets the gate-in time explicitly.
-- **The README CI badge uses `YOUR-GITHUB-USER`** because the repository has no remote yet, and the live demo link is added after the first deploy.
+- **The repository is public at https://github.com/oscarkuanta/yardflow**, and the README CI badge points there. The live demo link is added after the first deploy.

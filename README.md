@@ -1,6 +1,6 @@
 # YardFlow
 
-[![CI](https://github.com/YOUR-GITHUB-USER/yardflow/actions/workflows/ci.yml/badge.svg)](https://github.com/YOUR-GITHUB-USER/yardflow/actions/workflows/ci.yml)
+[![CI](https://github.com/oscarkuanta/yardflow/actions/workflows/ci.yml/badge.svg)](https://github.com/oscarkuanta/yardflow/actions/workflows/ci.yml)
 
 YardFlow is a container yard management system for one small container terminal. It knows where every container sits, lets trucks in and out through a PIN-checked gate, discharges and loads vessels, plans the relocations needed to dig a box out of a stack, stops containers on customs hold, and bills storage. Planners, gate operators and customers work on the same yard, and every change appears live on every open screen. It is a portfolio project built with Node.js, Express, Prisma, MySQL and React.
 
